@@ -145,12 +145,9 @@ function AuthPage() {
       navigate({ to: "/" });
     } catch (err) {
       setError(
-        err instanceof Error && err.name === "AuthError"
-          ? "Não foi possível entrar com Google. Verifique se o provider Google está habilitado nas configurações de autenticação do Supabase."
-          : err instanceof Error
-            ? err.message
-            : "Falha ao entrar com Google",
+        describeGoogleError(err instanceof Error ? err.message : "Falha ao entrar com Google"),
       );
+
 
       setBusy(false);
     }
