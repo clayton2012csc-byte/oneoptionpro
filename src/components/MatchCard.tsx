@@ -203,7 +203,7 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       </div>
 
       {/* Floating Badges - Positioned top right but below top bar */}
-      {market !== "none" && <ProbabilityBadge fixture={fixture} isSelected={isSelected} isNearScreen={isNearScreen} />}
+      {market !== "none" && <ProbabilityBadge fixture={fixture} isSelected={isSelected} />}
     </Link>
   );
 }
@@ -411,7 +411,7 @@ function FolderActions({ fixtureId }: { fixtureId: number }) {
   // Removido conforme solicitado para limpar o card
   return null;
 }
-function ProbabilityBadge({ fixture, isSelected, isNearScreen }: { fixture: ApiFixture; isSelected?: boolean; isNearScreen?: boolean }) {
+function ProbabilityBadge({ fixture, isSelected }: { fixture: ApiFixture; isSelected?: boolean }) {
   const { market, predictions, persistedPredictions } = useMarketFilter();
   const pinned = usePinnedSections();
   const fetchPreview = useServerFn(getMatchPreview);
