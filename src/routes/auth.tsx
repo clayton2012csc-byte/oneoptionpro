@@ -178,6 +178,10 @@ function AuthPage() {
           </svg>
           Continuar com Google
         </button>
+        <p className="-mt-3 mb-3 text-[10px] leading-snug text-muted-foreground text-center">
+          Se aparecer um aviso do Google, é porque a conta ainda não foi liberada no aplicativo. Você também pode entrar com e-mail abaixo.
+        </p>
+
 
         <div className="flex items-center gap-2 my-3 text-[10px] uppercase text-muted-foreground">
           <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
