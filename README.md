@@ -23,13 +23,20 @@ Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `GEMINI_API_KEY` ou `A
 
 ## 3. Ativar login Google
 
-No painel do Supabase:
+### 3.1 Google Cloud Console
+
+1. Crie ou escolha um projeto.
+2. Em **Tela de permissão OAuth**, escolha o tipo **Externo** e preencha nome do app, e-mail de suporte e e-mail do desenvolvedor.
+3. Enquanto o app estiver em modo de teste, adicione seu e-mail em **Usuários de teste**. Sem isso o Google responde `403 — Você não tem acesso a esta página`. Alternativa: usar **Publicar aplicativo**.
+4. Em **Credenciais**, crie um **ID do cliente OAuth** do tipo **Aplicativo da Web** e guarde Client ID e Client Secret.
+
+### 3.2 Supabase
 
 1. Abra **Authentication → Providers → Google** e habilite o provedor.
 2. Informe o Client ID e Client Secret criados no Google Cloud.
-3. Em **Authentication → URL Configuration**, defina a URL pública do site.
-4. Adicione às Redirect URLs: `https://SEU-DOMINIO/auth` e, durante desenvolvimento, `http://localhost:8080/auth`.
-5. No Google Cloud, cadastre a Callback URL exibida pelo Supabase no cliente OAuth.
+3. Copie a **Callback URL** exibida pelo Supabase e cadastre-a em **URIs de redirecionamento autorizados** no cliente OAuth do Google Cloud.
+4. Em **Authentication → URL Configuration**, defina a Site URL pública do site.
+5. Adicione às Redirect URLs: `https://SEU-DOMINIO/auth`, o endereço de pré-visualização do editor com `/auth` e, durante desenvolvimento, `http://localhost:8080/auth`.
 
 Login com e-mail e senha também é suportado.
 

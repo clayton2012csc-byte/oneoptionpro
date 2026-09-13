@@ -16,6 +16,24 @@ export const Route = createFileRoute("/auth")({
 
 type Mode = "signin" | "signup";
 
+/** Traduz erros do Google/Supabase em mensagens claras para o usuário. */
+function describeGoogleError(raw: string): string {
+  const msg = raw.trim();
+  if (/provider is not enabled|unsupported provider|validation_failed/i.test(msg)) {
+    return "O login com Google ainda não está ativado. No painel do Supabase, vá em Authentication → Providers → Google, ative e informe o Client ID e o Client Secret.";
+  }
+  if (/redirect|invalid request|403/i.test(msg)) {
+    return "O Google recusou o retorno para este endereço. Verifique se a Callback URL do Supabase está cadastrada no cliente OAuth do Google Cloud e se esta página está na lista de Redirect URLs do Supabase.";
+  }
+  if (/access_denied|has not been granted|test user|org_internal/i.test(msg)) {
+    return "Sua conta Google não tem permissão neste aplicativo. No Google Cloud, adicione o seu e-mail em Usuários de teste ou publique o aplicativo.";
+  }
+  if (/server_error|temporarily unavailable/i.test(msg)) {
+    return "O Google não respondeu agora. Tente novamente em alguns instantes.";
+  }
+  return msg || "Falha ao entrar com Google.";
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("signin");
@@ -35,7 +53,7 @@ function AuthPage() {
       hash.get("error_description") ||
       hash.get("error");
     if (oauthError) {
-      setError(decodeURIComponent(oauthError));
+      setError(describeGoogleError(decodeURIComponent(oauthError)));
       return;
     }
 
@@ -127,12 +145,9 @@ function AuthPage() {
       navigate({ to: "/" });
     } catch (err) {
       setError(
-        err instanceof Error && err.name === "AuthError"
-          ? "Não foi possível entrar com Google. Verifique se o provider Google está habilitado nas configurações de autenticação do Supabase."
-          : err instanceof Error
-            ? err.message
-            : "Falha ao entrar com Google",
+        describeGoogleError(err instanceof Error ? err.message : "Falha ao entrar com Google"),
       );
+
 
       setBusy(false);
     }
@@ -163,6 +178,10 @@ function AuthPage() {
           </svg>
           Continuar com Google
         </button>
+        <p className="-mt-3 mb-3 text-[10px] leading-snug text-muted-foreground text-center">
+          Se aparecer um aviso do Google, é porque a conta ainda não foi liberada no aplicativo. Você também pode entrar com e-mail abaixo.
+        </p>
+
 
         <div className="flex items-center gap-2 my-3 text-[10px] uppercase text-muted-foreground">
           <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
