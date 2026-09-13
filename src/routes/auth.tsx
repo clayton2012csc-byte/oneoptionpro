@@ -53,7 +53,7 @@ function AuthPage() {
       hash.get("error_description") ||
       hash.get("error");
     if (oauthError) {
-      setError(decodeURIComponent(oauthError));
+      setError(describeGoogleError(decodeURIComponent(oauthError)));
       return;
     }
 
