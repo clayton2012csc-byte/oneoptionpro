@@ -4,6 +4,17 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 
+type SupabaseError = { code?: string; message?: string };
+
+function isMissingAutoTicketsTable(error: SupabaseError | null): boolean {
+  if (!error) return false;
+  return (
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    error.message?.includes("public.auto_tickets") === true
+  );
+}
+
 export interface AutoTicketRow {
   id: string;
   fixture_id: number;
@@ -73,6 +84,12 @@ export const autoTicketStatus = createServerFn({ method: "GET" }).handler(async 
     .gte("kickoff", from)
     .lte("kickoff", until)
     .limit(1000);
+  if (isMissingAutoTicketsTable(error)) {
+    console.warn(
+      "[auto-tickets] tabela public.auto_tickets ainda não instalada; execute supabase/setup-supabase-completo.sql",
+    );
+    return { ready: 0, total: 0, coverage: 0, ids: [] as number[] };
+  }
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as { fixture_id: number; status: string }[];
   const ready = rows.filter((r) => r.status !== "skipped");
@@ -102,6 +119,12 @@ export const listAutoTickets = createServerFn({ method: "GET" }).handler(async (
       .neq("status", "skipped")
       .order("kickoff", { ascending: true })
       .range(i * page, i * page + page - 1);
+    if (isMissingAutoTicketsTable(error)) {
+      console.warn(
+        "[auto-tickets] tabela public.auto_tickets ainda não instalada; execute supabase/setup-supabase-completo.sql",
+      );
+      return [];
+    }
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as unknown as AutoTicketRow[];
     out.push(...rows);
