@@ -421,7 +421,9 @@ function ProbabilityBadge({ fixture, isSelected, isNearScreen }: { fixture: ApiF
     queryKey: ["preview", fixture.fixture.id],
     queryFn: () => fetchPreview({ data: { homeId: fixture.teams.home.id, awayId: fixture.teams.away.id, last: 5 } }),
     staleTime: 60 * 60_000, // Aumentado para 1h para mobile performance
-    enabled: (isSelected || isNearScreen) && (market === "none" || !predictions.some(p => p.fixtureId === fixture.fixture.id)),
+    // Só busca a prévia na API quando o usuário abre o jogo — evita ~12 requisições por card.
+    // Cards na lista usam as probabilidades persistidas da varredura (sem gastar API).
+    enabled: !!isSelected && (market === "none" || !predictions.some(p => p.fixtureId === fixture.fixture.id)),
   });
 
   const pred = useMemo(() => {
