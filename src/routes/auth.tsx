@@ -121,7 +121,7 @@ function AuthPage() {
         <div className="text-center mb-5">
           <div className="text-lg font-bold">OneOptiOn-BetA</div>
           <div className="text-xs text-muted-foreground mt-1">
-            {mode === "signin" ? "Entre para sincronizar seus fechamentos · teste" : "Crie sua conta · teste"}
+            {mode === "signin" ? "Entre para salvar e sincronizar seus fechamentos" : "Crie sua conta em poucos segundos"}
           </div>
         </div>
 
