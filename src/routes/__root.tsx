@@ -116,9 +116,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
   }),
   loader: async () => {
-    const config = await getPublicConfigFn();
-    setPublicConfig(config);
-    return { config };
+    try {
+      const config = await getPublicConfigFn();
+      setPublicConfig(config);
+      return { config };
+    } catch (err) {
+      // Uma falha momentânea de rede não deve derrubar a página inteira.
+      console.error("[config] falha ao carregar configuração pública", err);
+      return { config: null };
+    }
   },
   shellComponent: RootShell,
   component: RootComponent,
