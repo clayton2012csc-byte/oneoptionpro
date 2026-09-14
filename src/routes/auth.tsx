@@ -74,10 +74,13 @@ function AuthPage() {
       return;
     }
 
-    supabase.auth.getUser().then(({ data }) => {
-      if (data.user) navigate({ to: "/" });
-    });
-  }, [navigate]);
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (data.user) navigate({ to: "/" });
+      })
+      .catch(() => {});
+  }
 
 
   const handleEmail = async (e: React.FormEvent) => {
