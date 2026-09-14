@@ -27,6 +27,16 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    try {
+      runAuthBootstrap();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível iniciar a tela de login.");
+      setBusy(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
+  function runAuthBootstrap() {
     const url = new URL(window.location.href);
     const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
     const oauthError =
