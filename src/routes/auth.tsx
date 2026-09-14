@@ -99,8 +99,12 @@ function AuthPage() {
         /invalid login credentials/i.test(msg)
           ? "E-mail ou senha incorretos."
           : /email not confirmed/i.test(msg)
-            ? "Confirme o e-mail antes de entrar."
-            : msg,
+            ? "Confirme o e-mail antes de entrar. (Dica: no painel do Supabase, em Authentication → Providers → Email, você pode desativar a confirmação.)"
+            : /already registered|already been registered/i.test(msg)
+              ? "Este e-mail já tem conta. Toque em \"Entrar\" abaixo para acessar."
+              : /at least 6/i.test(msg)
+                ? "A senha precisa ter pelo menos 6 caracteres."
+                : msg,
       );
     } finally {
       setBusy(false);
@@ -108,35 +112,6 @@ function AuthPage() {
   };
 
 
-  const handleGoogle = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      const { error, data } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth`,
-        },
-
-      });
-      if (error) throw error;
-      if (data.url) {
-        window.location.assign(data.url);
-        return;
-      }
-      navigate({ to: "/" });
-    } catch (err) {
-      setError(
-        err instanceof Error && err.name === "AuthError"
-          ? "Não foi possível entrar com Google. Verifique se o provider Google está habilitado nas configurações de autenticação do Supabase."
-          : err instanceof Error
-            ? err.message
-            : "Falha ao entrar com Google",
-      );
-
-      setBusy(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background px-4">
