@@ -21,17 +21,26 @@ Copie `.env.example` para `.env` e preencha:
 
 Nunca exponha `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, `GEMINI_API_KEY` ou `API_FOOTBALL_KEY` no navegador.
 
-## 3. Ativar login Google
+## 3. Login com e-mail e senha
 
-No painel do Supabase:
+O app entra com e-mail e senha por padrão. Para o cadastro entrar direto, sem esperar e-mail de confirmação:
+
+1. No painel do Supabase, abra **Authentication → Sign In / Providers**.
+2. Clique em **Email** e confirme que está habilitado.
+3. Desative a chave **Confirm email** e salve.
+
+Pronto: criar conta já entra na hora e os dados são salvos no Supabase.
+
+### Login com Google (opcional)
+
+O botão do Google fica oculto até você configurar o provedor. Para ativar:
 
 1. Abra **Authentication → Providers → Google** e habilite o provedor.
-2. Informe o Client ID e Client Secret criados no Google Cloud.
-3. Em **Authentication → URL Configuration**, defina a URL pública do site.
-4. Adicione às Redirect URLs: `https://SEU-DOMINIO/auth` e, durante desenvolvimento, `http://localhost:8080/auth`.
-5. No Google Cloud, cadastre a Callback URL exibida pelo Supabase no cliente OAuth.
-
-Login com e-mail e senha também é suportado.
+2. Informe o Client ID e Client Secret criados no Google Cloud (tipo "Aplicativo da Web").
+3. Cadastre no Google Cloud a Callback URL exibida pelo Supabase (termina em `/auth/v1/callback`).
+4. Se a tela de permissão estiver em modo de teste, adicione seu e-mail em **Público-alvo → Usuários de teste**.
+5. Em **Authentication → URL Configuration**, defina a URL pública do site e adicione às Redirect URLs: `https://SEU-DOMINIO/auth` e, durante desenvolvimento, `http://localhost:8080/auth`.
+6. No app, reative o botão do Google em `src/routes/auth.tsx`.
 
 ## 4. Agendamentos automáticos (opcional)
 
