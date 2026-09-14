@@ -152,9 +152,6 @@ function AuthPage() {
 
         {/* Login com Google fica oculto até o provedor ser ativado no painel do Supabase */}
 
-        <div className="flex items-center gap-2 my-3 text-[10px] uppercase text-muted-foreground">
-          <div className="flex-1 h-px bg-border" /> ou <div className="flex-1 h-px bg-border" />
-        </div>
 
         <form onSubmit={handleEmail} className="space-y-2.5">
           <div className="relative">
