@@ -367,6 +367,10 @@ export async function gradePending(limit = 400): Promise<number> {
   }
   const dates = [...byDate.keys()].sort().slice(0, 6);
 
+  // Orçamento de scout (escanteios/cartões) por execução — protege a cota diária.
+  let scoutBudget = Number(process.env["SCOUT_BUDGET_PER_RUN"] ?? 40);
+  if (!Number.isFinite(scoutBudget) || scoutBudget < 0) scoutBudget = 40;
+
   let graded = 0;
   for (const date of dates) {
     const { finishedFixturesByDate } = await import("./api-football-raw.server");
