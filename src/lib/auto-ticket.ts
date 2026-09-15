@@ -69,7 +69,22 @@ export const AUTO_MARKETS = [
 ] as const;
 
 /** Probabilidade mínima (Poisson) para emitir Placar Exato Seco. */
-export const MIN_EXACT_PROB = 0.14;
+export const MIN_EXACT_PROB = 0.16;
+
+/** Confiança mínima exigida nos mercados críticos (65%). */
+export const MIN_CRITICAL_CONFIDENCE = 0.65;
+
+/**
+ * Teto realista de cada mercado crítico: a maior probabilidade que ele
+ * costuma alcançar. A confiança do modelo é `prob / teto` e precisa
+ * superar 65% para o palpite ser publicado.
+ */
+export const CRITICAL_CEILING: Record<string, number> = {
+  "Margem de Vitória": 0.58,
+  "Intervalo / Final": 0.46,
+  "Placar Múltiplo Exato": 0.62,
+  "Placar Exato Seco": 0.26,
+};
 /** Odd mínima recomendada para compensar a taxa histórica de acerto do Seco. */
 export const MIN_EXACT_ODD = 6.0;
 
