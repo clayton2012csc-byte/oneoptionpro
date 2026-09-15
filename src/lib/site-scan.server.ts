@@ -30,6 +30,10 @@ export interface SiteScan {
 
 const ROUTES = ["/", "/live", "/placar", "/proximo", "/seguinte", "/auth"];
 
+/** User-Agent de navegador de verdade: evita bloqueio de proxys/CDN (falso 403). */
+const BROWSER_UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+
 const TABLES = [
   "fechamentos",
   "ai_rounds",
@@ -45,7 +49,8 @@ const TABLES = [
 
 /** URL interna: evita proxies/CDN que bloqueiam varredura automática (403). */
 function resolveInternalBaseUrl() {
-  const port = process.env["PORT"] ?? "8080";
+  // Em produção (Vercel) a porta padrão não é usada — o fallback público cobre esse caso.
+  const port = process.env["PORT"] ?? "5173";
   return `http://127.0.0.1:${port}`;
 }
 
@@ -58,7 +63,7 @@ async function checkRoute(baseUrl: string, path: string): Promise<RouteCheck> {
   const started = Date.now();
   try {
     const res = await fetch(`${baseUrl}${path}`, {
-      headers: { "user-agent": "Mozilla/5.0 (compatible; OneOptionScanner/1.0)", accept: "text/html" },
+      headers: { "user-agent": BROWSER_UA, accept: "text/html", referer: baseUrl },
     });
     return { path, status: res.status, ms: Date.now() - started, ok: res.ok };
   } catch (e) {
@@ -81,9 +86,11 @@ export async function runSiteScan(): Promise<SiteScan> {
       }
       if (!check.ok) {
         problems.push(
-          check.status
-            ? `Rota ${path} respondeu ${check.status}.`
-            : `Rota ${path} não respondeu: ${check.error}`,
+          check.status === 403
+            ? `Rota ${path} bloqueada pelo host para varredura automática (HTTP 403) — abre normalmente no navegador.`
+            : check.status
+              ? `Rota ${path} respondeu ${check.status}.`
+              : `Rota ${path} não respondeu: ${check.error}`,
         );
       }
       return check;
@@ -108,6 +115,10 @@ export async function runSiteScan(): Promise<SiteScan> {
     { name: "GEMINI_API_KEY", configured: Boolean(process.env["GEMINI_API_KEY"]) },
     { name: "API_FOOTBALL_KEY", configured: Boolean(process.env["API_FOOTBALL_KEY"]) },
     { name: "CRON_SECRET", configured: Boolean(process.env["CRON_SECRET"]) },
+    {
+      name: "API_DAILY_BUDGET",
+      configured: Number(process.env["API_DAILY_BUDGET"]) > 0,
+    },
     {
       name: "SUPABASE_SERVICE_ROLE_KEY",
       configured: Boolean(
