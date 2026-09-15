@@ -44,3 +44,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+build
+.neko
+.env.local
+.env.*.local
+Thumbs.db

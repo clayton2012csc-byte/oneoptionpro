@@ -50,9 +50,18 @@ Não execute o modelo sem substituir `SEU-DOMINIO` e `SUA_CHAVE_CRON`.
 
 ## 5. Rodar localmente
 
+Antes de rodar, crie o arquivo `.env` na raiz conforme o passo 2 (copie o `.env.example` e preencha as variáveis).
+
+Com bun:
 ```sh
 bun install
 bun run dev
+```
+
+Sem bun (pode usar npm):
+```sh
+npm install
+npm run dev
 ```
 
 ## 6. Sincronização com GitHub
