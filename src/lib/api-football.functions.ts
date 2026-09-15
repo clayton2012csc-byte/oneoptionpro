@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { spendApiCall, readSnapshot, writeSnapshot } from "./api-football-guard.server";
 
 const BASE = "https://v3.football.api-sports.io";
 const TZ = "America/Sao_Paulo";
@@ -76,6 +77,9 @@ async function apiGet(path: string, params: Record<string, string | number | und
     return dbCached;
   }
 
+  // Teto diário do plano (compartilhado com o robô): se bateu, usa o cache longo.
+  if (!(await spendApiCall())) return await readSnapshot(cacheKey);
+
   await acquireSlot();
 
 
@@ -95,7 +99,7 @@ async function apiGet(path: string, params: Record<string, string | number | und
         }
         const text = await res.text().catch(() => "");
         console.error(`[api-football] ${path} ${res.status}: ${text.slice(0, 200)}`);
-        return cached?.data ?? [];
+        return cached?.data ?? (await readSnapshot(cacheKey));
       }
       const json = (await res.json()) as { response?: unknown; errors?: unknown };
       const errs = json.errors;
@@ -111,13 +115,16 @@ async function apiGet(path: string, params: Record<string, string | number | und
       const hasErr = Array.isArray(errs) ? errs.length > 0 : errObj ? Object.keys(errObj).length > 0 : false;
       if (hasErr) {
         console.error(`[api-football] ${path} errors:`, JSON.stringify(errs));
-        return cached?.data ?? [];
+        return cached?.data ?? (await readSnapshot(cacheKey));
       }
       const data = json.response ?? [];
       cache.set(cacheKey, { at: Date.now(), data });
       
       // Save to database cache asynchronously
       setCachedData(cacheKey, data, ttl).catch(e => console.error("[api-football] Cache write failed:", e));
+
+      // Cache longo de sobrevivência: site continua carregando se a API falhar/acabar.
+      void writeSnapshot(cacheKey, data);
       
       // Occasionally cleanup old cache (1 in 50 chance on write)
       if (Math.random() < 0.02) {
@@ -131,10 +138,10 @@ async function apiGet(path: string, params: Record<string, string | number | und
         continue;
       }
       console.error(`[api-football] ${path} network error:`, (err as Error).message);
-      return cached?.data ?? [];
+      return cached?.data ?? (await readSnapshot(cacheKey));
     }
   }
-  return cached?.data ?? [];
+  return cached?.data ?? (await readSnapshot(cacheKey));
 }
 
 export const getFixturesByDate = createServerFn({ method: "GET" })
