@@ -116,6 +116,45 @@ export async function recentFinishedIndex(days = 12): Promise<Map<number, ApiFix
   return idx;
 }
 
+/**
+ * Scout de um jogo encerrado (escanteios e cartões), usado SOMENTE na
+ * conferência e com cache longo — nunca na montagem dos bilhetes.
+ */
+export interface FixtureScout {
+  corners: number | null;
+  cards: number | null;
+}
+
+type StatItem = { type?: string; value?: number | string | null };
+type StatBlock = { statistics?: StatItem[] };
+
+function readStat(blocks: StatBlock[], names: string[]): number | null {
+  let total = 0;
+  let found = false;
+  for (const b of blocks) {
+    for (const s of b.statistics ?? []) {
+      const type = String(s.type ?? "").toLowerCase();
+      if (!names.some((n) => type === n)) continue;
+      const v = typeof s.value === "string" ? Number(s.value.replace("%", "")) : s.value;
+      if (typeof v === "number" && Number.isFinite(v)) {
+        total += v;
+        found = true;
+      }
+    }
+  }
+  return found ? total : null;
+}
+
+export async function fixtureScout(id: number): Promise<FixtureScout> {
+  const blocks = (await apiRaw("/fixtures/statistics", { fixture: id }, 7 * 24 * 60 * 60_000)) as StatBlock[];
+  if (!Array.isArray(blocks) || !blocks.length) return { corners: null, cards: null };
+  const corners = readStat(blocks, ["corner kicks"]);
+  const yellow = readStat(blocks, ["yellow cards"]);
+  const red = readStat(blocks, ["red cards"]);
+  const cards = yellow == null && red == null ? null : (yellow ?? 0) + (red ?? 0);
+  return { corners, cards };
+}
+
 /** Busca um jogo específico pelo id (permitido no plano). */
 export async function fixtureById(id: number): Promise<ApiFixture | null> {
   const arr = (await apiRaw("/fixtures", { id, timezone: TZ }, 60_000)) as ApiFixture[];

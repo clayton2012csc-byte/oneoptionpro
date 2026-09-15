@@ -21,9 +21,27 @@ function entitlementDayKey(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Teto padrão quando `API_DAILY_BUDGET` não está definido ou é inválido. */
+export const DEFAULT_DAILY_BUDGET = 1500;
+const MAX_DAILY_BUDGET = 100_000;
+let warned = false;
+
+/**
+ * Lê `API_DAILY_BUDGET` sem nunca quebrar o bootstrap: valor ausente, vazio,
+ * não numérico ou fora da faixa cai no padrão (e avisa uma única vez).
+ */
 export function dailyBudget(): number {
-  const raw = Number(process.env["API_DAILY_BUDGET"]);
-  return Number.isFinite(raw) && raw > 0 ? raw : 1500;
+  const env = process.env["API_DAILY_BUDGET"];
+  if (env == null || String(env).trim() === "") return DEFAULT_DAILY_BUDGET;
+  const raw = Number(env);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    if (!warned) {
+      warned = true;
+      console.warn(`[api-guard] API_DAILY_BUDGET inválido — usando padrão ${DEFAULT_DAILY_BUDGET}.`);
+    }
+    return DEFAULT_DAILY_BUDGET;
+  }
+  return Math.min(Math.floor(raw), MAX_DAILY_BUDGET);
 }
 
 /** Guarda o contador em `api_cache` com validade até o fim do dia. */

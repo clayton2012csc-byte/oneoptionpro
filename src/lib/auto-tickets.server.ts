@@ -367,6 +367,10 @@ export async function gradePending(limit = 400): Promise<number> {
   }
   const dates = [...byDate.keys()].sort().slice(0, 6);
 
+  // Orçamento de scout (escanteios/cartões) por execução — protege a cota diária.
+  let scoutBudget = Number(process.env["SCOUT_BUDGET_PER_RUN"] ?? 40);
+  if (!Number.isFinite(scoutBudget) || scoutBudget < 0) scoutBudget = 40;
+
   let graded = 0;
   for (const date of dates) {
     const { finishedFixturesByDate } = await import("./api-football-raw.server");
@@ -393,13 +397,32 @@ export async function gradePending(limit = 400): Promise<number> {
         continue;
       }
 
+      // Escanteios/cartões: só busca o scout quando o bilhete tem esses mercados
+      // e dentro de um orçamento por execução (protege a cota da API).
+      const rowPicks = (row.picks ?? []) as unknown as AutoPick[];
+      const needsScout = rowPicks.some(
+        (p) => p?.rule?.t === "corners" || p?.rule?.t === "cards" ||
+          (p?.rule?.t === "combo" && p.rule.legs.some((l) => l.t === "corners" || l.t === "cards")),
+      );
+      let scout: { corners: number | null; cards: number | null } = { corners: null, cards: null };
+      if (needsScout && scoutBudget > 0) {
+        scoutBudget--;
+        try {
+          const { fixtureScout } = await import("./api-football-raw.server");
+          scout = await fixtureScout(Number(row.fixture_id));
+        } catch (e) {
+          console.warn("[auto-tickets] scout indisponível", row.fixture_id, (e as Error).message);
+        }
+        await sleep(GAP_MS);
+      }
+
       const result: MatchResult = {
         goalsH: fx.goals.home ?? 0,
         goalsA: fx.goals.away ?? 0,
         htH: fx.score.halftime.home,
         htA: fx.score.halftime.away,
-        corners: null,
-        cards: null,
+        corners: scout.corners,
+        cards: scout.cards,
         firstGoal: null,
         homeName: String(row.home ?? "Casa"),
         awayName: String(row.away ?? "Fora"),
@@ -417,8 +440,8 @@ export async function gradePending(limit = 400): Promise<number> {
             away_score: result.goalsA,
             ht_home_score: result.htH ?? null,
             ht_away_score: result.htA ?? null,
-            total_corners: null,
-            total_cards: null,
+            total_corners: result.corners ?? null,
+            total_cards: result.cards ?? null,
             first_goal: null,
             reason: resultReason(result),
           } as unknown as never,
