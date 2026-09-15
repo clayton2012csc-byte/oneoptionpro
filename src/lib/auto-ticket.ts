@@ -423,7 +423,15 @@ export function buildAutoPicks(pred: OwnPrediction, ctx: AutoTicketContext): Aut
   }
 
 
-  return picks;
+  /* Filtro de confiança dos mercados críticos.
+     A confiança é medida contra o teto realista de cada mercado (a maior
+     probabilidade que ele costuma atingir). Só publica quando a confiança
+     do modelo for superior a 65%. */
+  return picks.filter((p) => {
+    const ceiling = CRITICAL_CEILING[p.market];
+    if (!ceiling) return true;
+    return p.prob / ceiling > MIN_CRITICAL_CONFIDENCE;
+  });
 }
 
 
