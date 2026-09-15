@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getDeviceId } from "./fechamentos";
+import { isSupabaseConfigured } from "@/lib/public-config";
 
 export type MatchPrediction = {
   id: string;
@@ -30,6 +31,7 @@ export async function saveMatchPrediction(input: {
   score: number;
   features: any;
 }) {
+  if (!isSupabaseConfigured()) return null;
   const deviceId = getDeviceId();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -64,6 +66,7 @@ export async function saveMatchPrediction(input: {
 
 /** Lista as previsões salvas para auditoria. */
 export async function listMatchPredictions() {
+  if (!isSupabaseConfigured()) return [];
   const { data, error } = await supabase
     .from("ai_predictions")
     .select("*")

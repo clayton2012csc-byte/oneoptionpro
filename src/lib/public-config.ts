@@ -51,3 +51,13 @@ export function getPublicConfig(): PublicConfig {
     "Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (ou APP_SUPABASE_URL / APP_SUPABASE_ANON_KEY no servidor).",
   );
 }
+
+/** Verdadeiro quando há URL e chave anônima disponíveis no navegador. */
+export function isSupabaseConfigured(): boolean {
+  try {
+    const cfg = getPublicConfig();
+    return Boolean(cfg && cfg.supabaseUrl && cfg.supabaseAnonKey);
+  } catch {
+    return false;
+  }
+}

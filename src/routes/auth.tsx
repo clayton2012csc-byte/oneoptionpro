@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Mail, Lock, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/public-config";
 import { BackHeader } from "@/components/BackHeader";
 
 export const Route = createFileRoute("/auth")({
@@ -36,7 +37,14 @@ function AuthPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
+  const NOT_CONFIGURED_MSG =
+  "O Supabase ainda não está configurado neste ambiente. Crie o arquivo .env com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY para liberar o login.";
+
   function runAuthBootstrap() {
+    if (!isSupabaseConfigured()) {
+      setError(NOT_CONFIGURED_MSG);
+      return;
+    }
     const url = new URL(window.location.href);
     const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
     const oauthError =
@@ -87,6 +95,10 @@ function AuthPage() {
     e.preventDefault();
     setError(null);
     setInfo(null);
+    if (!isSupabaseConfigured()) {
+      setError(NOT_CONFIGURED_MSG);
+      return;
+    }
     setBusy(true);
     try {
       if (mode === "signup") {

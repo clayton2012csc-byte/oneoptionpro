@@ -14,7 +14,7 @@ import { AppShell } from "../components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { LiveScannerProvider } from "@/lib/live-scanner";
 import { getPublicConfigFn } from "@/lib/public-config.functions";
-import { setPublicConfig } from "@/lib/public-config";
+import { isSupabaseConfigured, setPublicConfig } from "@/lib/public-config";
 
 function NotFoundComponent() {
   return (
@@ -155,6 +155,7 @@ function RootComponent() {
   const bare = pathname.startsWith("/auth");
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();

@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured } from "@/lib/public-config";
 
 const DEVICE_KEY = "oneopt.device_id";
 
@@ -42,11 +43,13 @@ export type Fechamento = {
 };
 
 async function currentUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured()) return null;
   const { data } = await supabase.auth.getUser();
   return data.user?.id ?? null;
 }
 
 export async function listFechamentos(): Promise<Fechamento[]> {
+  if (!isSupabaseConfigured()) return [];
   const userId = await currentUserId();
   const deviceId = getDeviceId();
   let query = supabase.from("fechamentos").select("*").order("created_at", { ascending: false });
@@ -67,6 +70,9 @@ export async function saveFechamento(input: {
   tickets: FechamentoTicket[];
   summary?: Record<string, unknown>;
 }): Promise<Fechamento> {
+  if (!isSupabaseConfigured()) {
+    throw new Error("Supabase não configurado para salvar o fechamento.");
+  }
   const userId = await currentUserId();
   const deviceId = getDeviceId();
   const { data, error } = await supabase
@@ -87,11 +93,13 @@ export async function saveFechamento(input: {
 }
 
 export async function deleteFechamento(id: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
   const { error } = await supabase.from("fechamentos").delete().eq("id", id);
   if (error) throw error;
 }
 
 export async function renameFechamento(id: string, name: string): Promise<void> {
+  if (!isSupabaseConfigured()) return;
   const { error } = await supabase.from("fechamentos").update({ name }).eq("id", id);
   if (error) throw error;
 }
@@ -101,6 +109,7 @@ export async function saveFechamentoCheck(input: {
   id: string;
   summary: Record<string, unknown>;
 }): Promise<void> {
+  if (!isSupabaseConfigured()) return;
   const { error } = await supabase
     .from("fechamentos")
     .update({ summary: input.summary as never, checked_at: new Date().toISOString() })
