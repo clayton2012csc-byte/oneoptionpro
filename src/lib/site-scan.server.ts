@@ -71,13 +71,20 @@ async function checkRoute(baseUrl: string, path: string): Promise<RouteCheck> {
 }
 
 export async function runSiteScan(): Promise<SiteScan> {
-  const internal = resolveInternalBaseUrl();
+  const internals = resolveInternalBaseUrls();
+  const internal = internals[0]!;
   const publicUrl = resolvePublicBaseUrl();
   const problems: string[] = [];
 
   const routes = await Promise.all(
     ROUTES.map(async (path): Promise<RouteCheck> => {
       let check = await checkRoute(internal, path);
+      // Tenta as outras portas internas antes de considerar falha.
+      for (const base of internals.slice(1)) {
+        if (check.ok) break;
+        const alt = await checkRoute(base, path);
+        if (alt.ok) check = alt;
+      }
       // Se a checagem interna falhar, tenta a URL pública antes de reportar erro.
       if (!check.ok && publicUrl) {
         const external = await checkRoute(publicUrl, path);

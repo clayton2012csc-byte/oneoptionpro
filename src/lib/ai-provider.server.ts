@@ -35,14 +35,41 @@ function toParts(msg: ChatMessage) {
 }
 
 /** Chamada de texto ao Gemini. `system` são instruções de sistema (concatenadas). */
+/** Modelos alternativos usados quando o principal está sobrecarregado (503). */
+const FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 export async function geminiChat(opts: {
   system: string[];
   messages: ChatMessage[];
   temperature?: number;
   maxOutputTokens?: number;
 }): Promise<string> {
+  const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callGemini(model, opts);
+      } catch (e) {
+        lastError = e as Error;
+        if (!/\[(429|5\d\d)\]|Muitas requisições/.test(lastError.message)) throw lastError;
+        await sleep(1200 * (attempt + 1));
+      }
+    }
+  }
+  throw new Error(
+    `A IA está temporariamente sobrecarregada. Tente novamente em instantes. (${lastError?.message ?? ""})`.trim(),
+  );
+}
+
+async function callGemini(
+  model: string,
+  opts: { system: string[]; messages: ChatMessage[]; temperature?: number; maxOutputTokens?: number },
+): Promise<string> {
   const key = requireKey();
-  const model = getGeminiModel();
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
