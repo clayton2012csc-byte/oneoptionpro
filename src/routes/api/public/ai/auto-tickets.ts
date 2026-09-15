@@ -8,8 +8,8 @@ export const Route = createFileRoute("/api/public/ai/auto-tickets")({
         if (!isAuthorizedCronRequest(request)) return new Response("Unauthorized", { status: 401 });
         try {
           const url = new URL(request.url);
-          const raw = Number(url.searchParams.get("limit") ?? 5);
-          const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 5, 1), 200);
+          const raw = Number(url.searchParams.get("limit") ?? 500);
+          const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 500, 1), 1000);
           const mode = url.searchParams.get("mode");
           if (mode === "grade") {
             const { gradePending, purgeExpiredCache } = await import("@/lib/auto-tickets.server");

@@ -128,7 +128,7 @@ async function throttleGate(key: string, windowMs: number): Promise<boolean> {
 }
 
 /** Executa um lote controlado: gera bilhetes dos próximos jogos e confere os encerrados. */
-export async function runAutoTicketsBatch(limit = 6): Promise<AutoTicketsProgress> {
+export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgress> {
   if (!(await acquireLock())) {
     const snap = await snapshotProgress();
     return { ...snap, ok: true, processed: 0, graded: 0, skipped: "lock" };
@@ -365,7 +365,7 @@ export async function gradePending(limit = 400): Promise<number> {
     arr.push(r);
     byDate.set(d, arr);
   }
-  const dates = [...byDate.keys()].sort().slice(0, 2);
+  const dates = [...byDate.keys()].sort().slice(0, 6);
 
   let graded = 0;
   for (const date of dates) {
