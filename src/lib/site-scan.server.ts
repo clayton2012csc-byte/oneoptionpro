@@ -47,11 +47,10 @@ const TABLES = [
   "betano_tickets",
 ] as const;
 
-/** URL interna: evita proxies/CDN que bloqueiam varredura automática (403). */
-function resolveInternalBaseUrl() {
-  // Em produção (Vercel) a porta padrão não é usada — o fallback público cobre esse caso.
-  const port = process.env["PORT"] ?? "5173";
-  return `http://127.0.0.1:${port}`;
+/** URLs internas candidatas: evita proxies/CDN que bloqueiam varredura (403). */
+function resolveInternalBaseUrls() {
+  const ports = [process.env["PORT"], "8080", "5173"].filter(Boolean) as string[];
+  return [...new Set(ports)].map((p) => `http://127.0.0.1:${p}`);
 }
 
 function resolvePublicBaseUrl() {
@@ -72,13 +71,20 @@ async function checkRoute(baseUrl: string, path: string): Promise<RouteCheck> {
 }
 
 export async function runSiteScan(): Promise<SiteScan> {
-  const internal = resolveInternalBaseUrl();
+  const internals = resolveInternalBaseUrls();
+  const internal = internals[0]!;
   const publicUrl = resolvePublicBaseUrl();
   const problems: string[] = [];
 
   const routes = await Promise.all(
     ROUTES.map(async (path): Promise<RouteCheck> => {
       let check = await checkRoute(internal, path);
+      // Tenta as outras portas internas antes de considerar falha.
+      for (const base of internals.slice(1)) {
+        if (check.ok) break;
+        const alt = await checkRoute(base, path);
+        if (alt.ok) check = alt;
+      }
       // Se a checagem interna falhar, tenta a URL pública antes de reportar erro.
       if (!check.ok && publicUrl) {
         const external = await checkRoute(publicUrl, path);
