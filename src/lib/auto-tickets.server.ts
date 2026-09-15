@@ -393,13 +393,32 @@ export async function gradePending(limit = 400): Promise<number> {
         continue;
       }
 
+      // Escanteios/cartões: só busca o scout quando o bilhete tem esses mercados
+      // e dentro de um orçamento por execução (protege a cota da API).
+      const rowPicks = (row.picks ?? []) as unknown as AutoPick[];
+      const needsScout = rowPicks.some(
+        (p) => p?.rule?.t === "corners" || p?.rule?.t === "cards" ||
+          (p?.rule?.t === "combo" && p.rule.legs.some((l) => l.t === "corners" || l.t === "cards")),
+      );
+      let scout: { corners: number | null; cards: number | null } = { corners: null, cards: null };
+      if (needsScout && scoutBudget > 0) {
+        scoutBudget--;
+        try {
+          const { fixtureScout } = await import("./api-football-raw.server");
+          scout = await fixtureScout(Number(row.fixture_id));
+        } catch (e) {
+          console.warn("[auto-tickets] scout indisponível", row.fixture_id, (e as Error).message);
+        }
+        await sleep(GAP_MS);
+      }
+
       const result: MatchResult = {
         goalsH: fx.goals.home ?? 0,
         goalsA: fx.goals.away ?? 0,
         htH: fx.score.halftime.home,
         htA: fx.score.halftime.away,
-        corners: null,
-        cards: null,
+        corners: scout.corners,
+        cards: scout.cards,
         firstGoal: null,
         homeName: String(row.home ?? "Casa"),
         awayName: String(row.away ?? "Fora"),
