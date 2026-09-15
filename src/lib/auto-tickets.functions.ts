@@ -154,9 +154,14 @@ export const marketAccuracy = createServerFn({ method: "GET" }).handler(async ()
   updatedAt: string | null;
   rows: MarketAccuracyRow[];
 }> => {
-  const { computeMarketRanking, readMarketRankingSnapshot } = await import("./auto-tickets.server");
-  const { AUTO_MARKETS } = await import("./auto-ticket");
-  const rows = await computeMarketRanking(AUTO_MARKETS);
-  const snap = await readMarketRankingSnapshot().catch(() => ({ at: null, rows: [] }));
-  return { updatedAt: snap.at, rows };
+  try {
+    const { computeMarketRanking, readMarketRankingSnapshot } = await import("./auto-tickets.server");
+    const { AUTO_MARKETS } = await import("./auto-ticket");
+    const rows = await computeMarketRanking(AUTO_MARKETS);
+    const snap = await readMarketRankingSnapshot().catch(() => ({ at: null, rows: [] }));
+    return { updatedAt: snap.at, rows };
+  } catch (e) {
+    console.warn("[auto-tickets] ranking indisponível:", (e as Error).message);
+    return { updatedAt: null, rows: [] };
+  }
 });
