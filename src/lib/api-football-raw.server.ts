@@ -49,7 +49,7 @@ async function apiRaw(path: string, params: Record<string, string | number>, ttl
       console.error(`[api-raw] ${path}`, JSON.stringify(errs));
       return await readSnapshot(cacheKey);
     }
-    const data = json.response ?? [];
+    const data = (Array.isArray(json.response) ? json.response : []) as unknown[];
     mem.set(cacheKey, { at: Date.now(), ttl: ttlMs, data });
     void setCachedData(cacheKey, data, ttlMs).catch(() => {});
     // Cache longo: garante que o site continua carregando mesmo dias depois,

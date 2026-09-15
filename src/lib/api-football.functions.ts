@@ -117,7 +117,7 @@ async function apiGet(path: string, params: Record<string, string | number | und
         console.error(`[api-football] ${path} errors:`, JSON.stringify(errs));
         return cached?.data ?? (await readSnapshot(cacheKey));
       }
-      const data = json.response ?? [];
+      const data = (Array.isArray(json.response) ? json.response : []) as unknown[];
       cache.set(cacheKey, { at: Date.now(), data });
       
       // Save to database cache asynchronously
