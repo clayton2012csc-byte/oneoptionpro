@@ -54,7 +54,7 @@ export const runAutoTickets = createServerFn({ method: "POST" })
   .inputValidator((d: { limit?: number } | undefined) => d ?? {})
   .handler(async ({ data }) => {
     const { runAutoTicketsBatch } = await import("./auto-tickets.server");
-    const limit = Math.min(Math.max(data.limit ?? 5, 1), 10);
+    const limit = Math.min(Math.max(data.limit ?? 500, 1), 1000);
     return await runAutoTicketsBatch(limit);
   });
 
