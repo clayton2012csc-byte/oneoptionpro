@@ -33,7 +33,7 @@ SELECT cron.schedule('oneoption-ai-selftest-daily', '0 2 * * *', $$
   SELECT net.http_post(url := 'https://oneoptionpro.lovable.app/api/public/ai/selftest', headers := '{"Content-Type":"application/json","x-cron-secret":"SEGREDO_CRON_A_CADASTRAR"}'::jsonb, body := '{}'::jsonb);
 $$);
 SELECT cron.schedule('oneoption-auto-tickets', '*/15 * * * *', $$
-  SELECT net.http_post(url := 'https://oneoptionpro.lovable.app/api/public/ai/auto-tickets?limit=25', headers := '{"Content-Type":"application/json","x-cron-secret":"SEGREDO_CRON_A_CADASTRAR"}'::jsonb, body := '{}'::jsonb);
+  SELECT net.http_post(url := 'https://oneoptionpro.lovable.app/api/public/ai/auto-tickets?limit=500', headers := '{"Content-Type":"application/json","x-cron-secret":"SEGREDO_CRON_A_CADASTRAR"}'::jsonb, body := '{}'::jsonb);
 $$);
 SELECT cron.schedule('oneoption-auto-tickets-grade', '*/10 * * * *', $$
   SELECT net.http_post(url := 'https://oneoptionpro.lovable.app/api/public/ai/auto-tickets?mode=grade&limit=200', headers := '{"Content-Type":"application/json","x-cron-secret":"SEGREDO_CRON_A_CADASTRAR"}'::jsonb, body := '{}'::jsonb);
