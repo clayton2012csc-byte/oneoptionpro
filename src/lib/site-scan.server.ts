@@ -47,11 +47,10 @@ const TABLES = [
   "betano_tickets",
 ] as const;
 
-/** URL interna: evita proxies/CDN que bloqueiam varredura automática (403). */
-function resolveInternalBaseUrl() {
-  // Em produção (Vercel) a porta padrão não é usada — o fallback público cobre esse caso.
-  const port = process.env["PORT"] ?? "5173";
-  return `http://127.0.0.1:${port}`;
+/** URLs internas candidatas: evita proxies/CDN que bloqueiam varredura (403). */
+function resolveInternalBaseUrls() {
+  const ports = [process.env["PORT"], "8080", "5173"].filter(Boolean) as string[];
+  return [...new Set(ports)].map((p) => `http://127.0.0.1:${p}`);
 }
 
 function resolvePublicBaseUrl() {
