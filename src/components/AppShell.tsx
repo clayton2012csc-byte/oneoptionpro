@@ -159,10 +159,11 @@ function TopBar() {
             ) : (
               <Link
                 to="/auth"
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
+                className="inline-flex items-center justify-center gap-1.5 w-9 sm:w-auto h-9 sm:px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
+                aria-label="Entrar"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                Entrar
+                <span className="hidden sm:inline">Entrar</span>
               </Link>
             ))}
         </div>
