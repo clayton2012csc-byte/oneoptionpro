@@ -12,9 +12,11 @@ export const Route = createFileRoute("/api/public/ai/auto-tickets")({
           const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 500, 1), 1000);
           const mode = url.searchParams.get("mode");
           if (mode === "grade") {
-            const { gradePending, purgeExpiredCache } = await import("@/lib/auto-tickets.server");
+            const { gradePending, purgeExpiredCache, persistMarketRanking } = await import("@/lib/auto-tickets.server");
+            const { AUTO_MARKETS } = await import("@/lib/auto-ticket");
             const graded = await gradePending(limit);
             const purged = await purgeExpiredCache();
+            await persistMarketRanking(AUTO_MARKETS).catch(() => []);
             return Response.json({ ok: true, graded, purged });
           }
           const { runAutoTicketsBatch } = await import("@/lib/auto-tickets.server");

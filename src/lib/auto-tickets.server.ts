@@ -338,10 +338,12 @@ function spDate(iso: string): string {
 }
 
 /**
- * Conferência em LOTE: no máximo 2 requisições por execução.
- * Uma chamada por data (`/fixtures?date=YYYY-MM-DD&status=FT-AET-PEN`) e o
- * cruzamento com `auto_tickets` acontece localmente — nunca `fixtures/statistics`
- * jogo a jogo. Escanteios/cartões ficam nulos (o grading trata como void).
+ * Conferência em LOTE: primeiro varre as datas com `finishedFixturesByDate`
+ * (1 requisição por data, cacheada), depois faz fallback individual via
+ * `fixtureById` (requisição única, cacheada em `api_cache`/snapshot) para os
+ * jogos que não apareceram no lote. Cada jogo encerrado vira `graded` com o
+ * resultado real; escanteios/cartões só são buscados quando o bilhete tem esses
+ * mercados e dentro do `SCOUT_BUDGET_PER_RUN`.
  */
 export async function gradePending(limit = 400): Promise<number> {
   const db = await admin();
@@ -357,7 +359,75 @@ export async function gradePending(limit = 400): Promise<number> {
   const pending = rows ?? [];
   if (!pending.length) return 0;
 
-  // Agrupa por data e processa no máximo 2 datas (teto duro de 2 requisições).
+  // Orçamento de scout (escanteios/cartões) por execução — protege a cota diária.
+  let scoutBudget = Number(process.env["SCOUT_BUDGET_PER_RUN"] ?? 40);
+  if (!Number.isFinite(scoutBudget) || scoutBudget < 0) scoutBudget = 40;
+
+  /** Confere um jogo já encerrado contra o bilhete e grava o status final. */
+  const gradeGame = async (row: (typeof pending)[number], fx: ApiFixture): Promise<boolean> => {
+    // Escanteios/cartões: só busca o scout quando o bilhete tem esses mercados
+    // e dentro de um orçamento por execução (protege a cota da API).
+    const rowPicks = (row.picks ?? []) as unknown as AutoPick[];
+    const needsScout = rowPicks.some(
+      (p) => p?.rule?.t === "corners" || p?.rule?.t === "cards" ||
+        (p?.rule?.t === "combo" && p.rule.legs.some((l) => l.t === "corners" || l.t === "cards")),
+    );
+    let scout: { corners: number | null; cards: number | null } = { corners: null, cards: null };
+    if (needsScout && scoutBudget > 0) {
+      scoutBudget--;
+      try {
+        const { fixtureScout } = await import("./api-football-raw.server");
+        scout = await fixtureScout(Number(row.fixture_id));
+      } catch (e) {
+        console.warn("[auto-tickets] scout indisponível", row.fixture_id, (e as Error).message);
+      }
+      await sleep(GAP_MS);
+    }
+
+    const result: MatchResult = {
+      goalsH: fx.goals.home ?? 0,
+      goalsA: fx.goals.away ?? 0,
+      htH: fx.score.halftime.home,
+      htA: fx.score.halftime.away,
+      corners: scout.corners,
+      cards: scout.cards,
+      firstGoal: null,
+      homeName: String(row.home ?? "Casa"),
+      awayName: String(row.away ?? "Fora"),
+    };
+
+    const g = gradeAutoPicks(rowPicks, result);
+    const { error } = await db
+      .from("auto_tickets")
+      .update({
+        picks: g.picks as unknown as never,
+        status: "graded",
+        result: result as unknown as never,
+        result_snapshot: {
+          home_score: result.goalsH,
+          away_score: result.goalsA,
+          ht_home_score: result.htH ?? null,
+          ht_away_score: result.htA ?? null,
+          total_corners: result.corners ?? null,
+          total_cards: result.cards ?? null,
+          first_goal: null,
+          reason: resultReason(result),
+        } as unknown as never,
+        greens: g.greens,
+        reds: g.reds,
+        accuracy: g.accuracy,
+        graded_at: new Date().toISOString(),
+      })
+      .eq("id", row.id);
+    if (error) {
+      console.warn("[auto-tickets] falha ao gravar conferência", row.fixture_id, error.message);
+      return false;
+    }
+    return true;
+  };
+
+  // Agrupa por data (SP) e processa primeiro as datas mais antigas, que são as
+  // que já tiveram tempo de encerrar. Cada data = 1 requisição à API-Football.
   const byDate = new Map<string, typeof pending>();
   for (const r of pending) {
     const d = spDate(String(r.kickoff));
@@ -365,13 +435,11 @@ export async function gradePending(limit = 400): Promise<number> {
     arr.push(r);
     byDate.set(d, arr);
   }
-  const dates = [...byDate.keys()].sort().slice(0, 6);
-
-  // Orçamento de scout (escanteios/cartões) por execução — protege a cota diária.
-  let scoutBudget = Number(process.env["SCOUT_BUDGET_PER_RUN"] ?? 40);
-  if (!Number.isFinite(scoutBudget) || scoutBudget < 0) scoutBudget = 40;
+  const dates = [...byDate.keys()].sort().slice(0, 8);
 
   let graded = 0;
+  const matched = new Set<string>();
+
   for (const date of dates) {
     const { finishedFixturesByDate } = await import("./api-football-raw.server");
     let finished: ApiFixture[] = [];
@@ -386,75 +454,51 @@ export async function gradePending(limit = 400): Promise<number> {
 
     for (const row of byDate.get(date) ?? []) {
       const fx = map.get(Number(row.fixture_id));
-      if (!fx) {
-        const stale = Date.now() - new Date(row.kickoff as string).getTime() > 12 * 60 * 60 * 1000;
-        if (stale) {
-          await db
-            .from("auto_tickets")
-            .update({ status: "void", graded_at: new Date().toISOString() })
-            .eq("id", row.id);
-        }
-        continue;
-      }
-
-      // Escanteios/cartões: só busca o scout quando o bilhete tem esses mercados
-      // e dentro de um orçamento por execução (protege a cota da API).
-      const rowPicks = (row.picks ?? []) as unknown as AutoPick[];
-      const needsScout = rowPicks.some(
-        (p) => p?.rule?.t === "corners" || p?.rule?.t === "cards" ||
-          (p?.rule?.t === "combo" && p.rule.legs.some((l) => l.t === "corners" || l.t === "cards")),
-      );
-      let scout: { corners: number | null; cards: number | null } = { corners: null, cards: null };
-      if (needsScout && scoutBudget > 0) {
-        scoutBudget--;
-        try {
-          const { fixtureScout } = await import("./api-football-raw.server");
-          scout = await fixtureScout(Number(row.fixture_id));
-        } catch (e) {
-          console.warn("[auto-tickets] scout indisponível", row.fixture_id, (e as Error).message);
-        }
-        await sleep(GAP_MS);
-      }
-
-      const result: MatchResult = {
-        goalsH: fx.goals.home ?? 0,
-        goalsA: fx.goals.away ?? 0,
-        htH: fx.score.halftime.home,
-        htA: fx.score.halftime.away,
-        corners: scout.corners,
-        cards: scout.cards,
-        firstGoal: null,
-        homeName: String(row.home ?? "Casa"),
-        awayName: String(row.away ?? "Fora"),
-      };
-
-      const g = gradeAutoPicks((row.picks ?? []) as unknown as AutoPick[], result);
-      const { error } = await db
-        .from("auto_tickets")
-        .update({
-          picks: g.picks as unknown as never,
-          status: "graded",
-          result: result as unknown as never,
-          result_snapshot: {
-            home_score: result.goalsH,
-            away_score: result.goalsA,
-            ht_home_score: result.htH ?? null,
-            ht_away_score: result.htA ?? null,
-            total_corners: result.corners ?? null,
-            total_cards: result.cards ?? null,
-            first_goal: null,
-            reason: resultReason(result),
-          } as unknown as never,
-          greens: g.greens,
-          reds: g.reds,
-          accuracy: g.accuracy,
-          graded_at: new Date().toISOString(),
-        })
-        .eq("id", row.id);
-      if (error) console.warn("[auto-tickets] falha ao gravar conferência", row.fixture_id, error.message);
-      else graded++;
+      if (!fx) continue; // deixa para o fallback individual abaixo
+      matched.add(row.id);
+      if (await gradeGame(row, fx)) graded++;
     }
   }
+
+  // Fallback individual: jogos que não apareceram no lote por data são buscados
+  // pelo id (requisição única, cacheada). Só tenta quando já houve tempo
+  // suficiente para o apito final e respeitando um teto de buscas por execução
+  // (protege a cota diária compartilhada do site).
+  const INDIVIDUAL_AFTER_MS = 3 * 60 * 60 * 1000;
+  const missedCount = pending.length - matched.size;
+  const fallbackBudget = Math.min(Math.max(missedCount, 10), 80);
+  const { fixtureById } = await import("./api-football-raw.server");
+  let tried = 0;
+  for (const row of pending) {
+    if (matched.has(row.id)) continue;
+    const age = Date.now() - new Date(row.kickoff as string).getTime();
+    if (age < INDIVIDUAL_AFTER_MS) continue;
+    if (tried >= fallbackBudget) break;
+    tried++;
+    let fx: ApiFixture | null = null;
+    try {
+      fx = await fixtureById(Number(row.fixture_id));
+    } catch (e) {
+      console.warn("[auto-tickets] fallback indisponível", row.fixture_id, (e as Error).message);
+    }
+    await sleep(GAP_MS);
+    if (!fx) {
+      // Sem retorno 12h+ após o kickoff: anula (dado indisponível) para não
+      // manter bilhetes pendentes para sempre.
+      if (age > 12 * 60 * 60 * 1000) {
+        await db
+          .from("auto_tickets")
+          .update({ status: "void", graded_at: new Date().toISOString() })
+          .eq("id", row.id);
+      }
+      continue;
+    }
+    const short = fx.fixture.status.short;
+    if (short !== "FT" && short !== "AET" && short !== "PEN") continue; // segue pendente até encerrar
+    matched.add(row.id);
+    if (await gradeGame(row, fx)) graded++;
+  }
+
   return graded;
 }
 

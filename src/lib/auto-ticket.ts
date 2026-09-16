@@ -4,6 +4,7 @@
  * e sabe conferir cada pick contra o resultado real (Green / Red).
  */
 import type { OwnPrediction } from "./own-prediction";
+import { requiredConfidence } from "./ticket-rules";
 
 export type PickRule =
   | { t: "1x2"; pick: "H" | "D" | "A" }
@@ -71,13 +72,11 @@ export const AUTO_MARKETS = [
 /** Probabilidade mínima (Poisson) para emitir Placar Exato Seco. */
 export const MIN_EXACT_PROB = 0.16;
 
-/** Confiança mínima exigida nos mercados críticos (65%). */
-export const MIN_CRITICAL_CONFIDENCE = 0.65;
-
 /**
  * Teto realista de cada mercado crítico: a maior probabilidade que ele
  * costuma alcançar. A confiança do modelo é `prob / teto` e precisa
- * superar 65% para o palpite ser publicado.
+ * superar o piso (65% nos mercados sãos; 80% nos de baixa taxa histórica —
+ * ver `ticket-rules.ts`) para o palpite ser publicado.
  */
 export const CRITICAL_CEILING: Record<string, number> = {
   "Margem de Vitória": 0.58,
@@ -445,7 +444,7 @@ export function buildAutoPicks(pred: OwnPrediction, ctx: AutoTicketContext): Aut
   return picks.filter((p) => {
     const ceiling = CRITICAL_CEILING[p.market];
     if (!ceiling) return true;
-    return p.prob / ceiling > MIN_CRITICAL_CONFIDENCE;
+    return p.prob / ceiling > requiredConfidence(p.market);
   });
 }
 

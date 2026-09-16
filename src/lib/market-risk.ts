@@ -1,15 +1,11 @@
 /**
  * Mercados de baixa conversão histórica (assertividade real medida nos bilhetes conferidos).
- * Usado para sinalizar risco crítico na UI e para a trava de montagem de bilhetes.
+ * Usado para sinalizar risco crítico na UI. A tabela de taxas históricas agora é
+ * definida em `ticket-rules.ts` (fonte única de verdade, também usada pelo robô).
  */
-export const RISK_THRESHOLD = 0.2;
+import { MARKET_HISTORIC_ACCURACY } from "./ticket-rules";
 
-export const MARKET_HISTORIC_ACCURACY: Record<string, number> = {
-  "Aposta Montada": 0.035,
-  "Placar Exato Seco": 0.09,
-  "Evolução do Jogo": 0.167,
-  "Placar Múltiplo Exato": 0.183,
-};
+export const RISK_THRESHOLD = 0.2;
 
 export function marketRisk(market: string): number | null {
   return MARKET_HISTORIC_ACCURACY[market] ?? null;

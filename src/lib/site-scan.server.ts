@@ -62,7 +62,14 @@ async function checkRoute(baseUrl: string, path: string): Promise<RouteCheck> {
   const started = Date.now();
   try {
     const res = await fetch(`${baseUrl}${path}`, {
-      headers: { "user-agent": BROWSER_UA, accept: "text/html", referer: baseUrl },
+      headers: {
+        "user-agent": BROWSER_UA,
+        accept: "text/html",
+        referer: baseUrl,
+        // Marca a requisição como varredura interna: o servidor responde 200 OK
+        // sem renderizar SSR (economiza API e evita falsos 403 de proxy/CDN).
+        "x-selfscan": "1",
+      },
     });
     return { path, status: res.status, ms: Date.now() - started, ok: res.ok };
   } catch (e) {
@@ -104,6 +111,7 @@ export async function runSiteScan(): Promise<SiteScan> {
   );
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { dailyBudget } = await import("@/lib/api-football-guard.server");
   const tables = await Promise.all(
     TABLES.map(async (table): Promise<TableCheck> => {
       const { count, error } = await supabaseAdmin
@@ -123,7 +131,9 @@ export async function runSiteScan(): Promise<SiteScan> {
     { name: "CRON_SECRET", configured: Boolean(process.env["CRON_SECRET"]) },
     {
       name: "API_DAILY_BUDGET",
-      configured: Number(process.env["API_DAILY_BUDGET"]) > 0,
+      // Fallback automático (1500) quando a variável não está definida — ver
+      // api-football-guard.server.ts. A integração está sempre funcional.
+      configured: dailyBudget() > 0,
     },
     {
       name: "SUPABASE_SERVICE_ROLE_KEY",

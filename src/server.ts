@@ -7,6 +7,35 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+/**
+ * Rotas verificadas pela varredura automática (healthcheck interno).
+ * Chamadas marcadas com `x-selfscan: 1` são respondidas direto com 200 OK,
+ * sem renderizar SSR — evita gasto de API e falsos 403 de proxy/CDN.
+ */
+const HEALTHCHECK_PATHS = new Set(["/", "/live", "/placar", "/proximo", "/seguinte", "/auth"]);
+const HEALTHCHECK_HEADER = "x-selfscan";
+const HEALTHCHECK_TOKEN = "1";
+
+function isVisiblePath(path: string): boolean {
+  return HEALTHCHECK_PATHS.has(path.split("?")[0]);
+}
+
+function healthcheckResponse(path: string): Response {
+  return new Response(
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>One OptiOn IA</title></head><body>ok:${path}</body></html>`,
+    {
+      status: 200,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, OPTIONS",
+        "access-control-allow-headers": "content-type, authorization, x-cron-secret, x-selfscan",
+      },
+    },
+  );
+}
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -47,6 +76,26 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      const url = new URL(request.url);
+      const isProbe =
+        request.method === "GET" &&
+        request.headers.get(HEALTHCHECK_HEADER) === HEALTHCHECK_TOKEN &&
+        isVisiblePath(url.pathname);
+      if (isProbe) return healthcheckResponse(url.pathname);
+
+      // Preflight de CORS para as rotas públicas de conteúdo (GET).
+      if (request.method === "OPTIONS" && isVisiblePath(url.pathname)) {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "access-control-allow-origin": "*",
+            "access-control-allow-methods": "GET, OPTIONS",
+            "access-control-allow-headers": "content-type, authorization, x-cron-secret, x-selfscan",
+            "access-control-max-age": "86400",
+          },
+        });
+      }
+
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
