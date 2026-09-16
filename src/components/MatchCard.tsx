@@ -111,14 +111,12 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
           setSelectedFixture(fixture.fixture.id);
         }
       }}
-      className={`flex flex-col gap-3 rounded-[2rem] p-5 relative group transition-all duration-700 border border-white/5 overflow-hidden shadow-2xl ${
-        st.live ? "ring-1 ring-primary/40 shadow-[0_0_30px_rgba(var(--primary),0.1)]" : "hover:border-primary/40 hover:shadow-[0_0_40px_rgba(var(--primary),0.05)]"
+      className={`flex flex-col gap-3 rounded-2xl p-5 relative group transition-all duration-300 border border-white/10 overflow-hidden shadow-lg shadow-background/30 ${
+        st.live ? "ring-1 ring-live/35 border-live/25" : "hover:border-primary/30 hover:bg-accent/20"
       } ${isSelected ? "ring-2 ring-primary border-primary/50" : ""}`}
     >
-      {/* Background with full gradient and carbon fiber pattern */}
-      <div className="absolute inset-0 bg-gradient-to-br from-neutral-700 via-neutral-800 to-neutral-900 group-hover:from-neutral-600 group-hover:via-neutral-700 group-hover:to-neutral-800 transition-all duration-700 -z-10" />
-      <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-[0.08] pointer-events-none -z-10" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20 pointer-events-none -z-10" />
+      <div className="absolute inset-0 bg-card/80 backdrop-blur-xl -z-10" />
+      <div className="absolute inset-x-0 top-0 h-px bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100 -z-10" />
 
       
       {/* Top Bar: League & Status */}
@@ -199,7 +197,7 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
             <FavoriteButton fixtureId={fixture.fixture.id} />
             <NotificationButton fixtureId={fixture.fixture.id} />
           </div>
-          <div className="flex items-center gap-1 bg-primary/5 px-2 py-1.5 rounded-xl border border-primary/10 shadow-inner">
+          <div className="flex items-center gap-1 bg-white/5 px-2 py-1.5 rounded-xl border border-white/5 shadow-inner">
             <PinShortcuts fixtureId={fixture.fixture.id} />
             <RefreshButton />
           </div>
@@ -298,7 +296,7 @@ function OddsStrip({ fixtureId, enabled }: { fixtureId: number; enabled: boolean
         {cells.map((c) => (
           <div
             key={c.k}
-            className="group flex items-center justify-between gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1.5 transition-all hover:bg-blue-600 hover:border-blue-600 hover:shadow-[0_0_12px_rgba(234,88,12,0.3)]"
+            className="group flex items-center justify-between gap-1.5 rounded-lg bg-white/5 border border-white/10 px-2.5 py-1.5 transition-all hover:bg-primary hover:border-primary"
           >
             <span className="text-[10px] font-black text-muted-foreground/60 transition-colors group-hover:text-white/80">{c.k}</span>
             <span className="text-[11px] font-black tabular text-foreground transition-colors group-hover:text-white">
@@ -317,7 +315,7 @@ function OddsStrip({ fixtureId, enabled }: { fixtureId: number; enabled: boolean
           ].filter((x) => x.odd) as { k: string; odd: number }[]).map((x) => (
             <span
               key={x.k}
-              className="group text-[9px] font-bold tabular px-1 py-0.5 rounded border border-primary/20 bg-primary/10 text-muted-foreground transition-colors hover:bg-blue-600 hover:border-blue-600 hover:shadow-[0_0_10px_rgba(234,88,12,0.3)]"
+              className="group text-[9px] font-bold tabular px-1 py-0.5 rounded border border-white/10 bg-white/5 text-muted-foreground transition-colors hover:bg-primary hover:border-primary"
             >
               {x.k} <span className="text-foreground transition-colors group-hover:text-white">{x.odd.toFixed(2)}</span>
             </span>
