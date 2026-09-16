@@ -85,7 +85,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Fechamentos automáticos, odds da Betano e análise Poisson + Dixon-Coles dos próximos jogos.",
       },
       { name: "author", content: "One OptiOn IA" },
-      { name: "theme-color", content: "#f97316" },
+      { name: "theme-color", content: "#171719" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },

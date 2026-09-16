@@ -25,7 +25,7 @@ const POPULAR = [
 export function LeagueList({ onNavigate }: { onNavigate?: () => void } = {}) {
   const favorites = useFavorites();
   return (
-    <div className="rounded-2xl bg-card border border-white/5 p-3">
+    <div className="rounded-xl glass p-3">
       <div className="flex items-center gap-2 px-2 py-1.5 mb-1">
         <Trophy className="w-4 h-4 text-primary" />
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
@@ -41,7 +41,7 @@ export function LeagueList({ onNavigate }: { onNavigate?: () => void } = {}) {
               to="/liga/$leagueId"
               params={{ leagueId: String(l.id) }}
               onClick={onNavigate}
-              className="flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-sm hover:bg-white/5 transition group"
+              className="flex items-center gap-2.5 px-2 py-2.5 rounded-lg text-sm hover:bg-accent/70 transition group"
             >
               <span className="w-6 h-6 rounded-md bg-white/5 flex items-center justify-center text-xs shrink-0">
                 {l.icon}
@@ -137,7 +137,7 @@ export function RightPanel() {
           <MatchDetailPanel fixtureId={selected} embedded />
         ) : (
           <>
-            <div className="rounded-2xl bg-gradient-to-br from-primary/20 via-card to-card border border-primary/30 p-4">
+            <div className="rounded-xl glass p-4 border-primary/20">
               <div className="flex items-center gap-2 mb-2">
                 <Flag className="w-4 h-4 text-primary" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">Selecione um jogo</h3>
@@ -148,7 +148,7 @@ export function RightPanel() {
               </p>
             </div>
 
-            <div className="rounded-2xl bg-card border border-white/5 p-4">
+            <div className="rounded-xl glass p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Globe2 className="w-4 h-4 text-primary" />
                 <h3 className="text-xs font-bold uppercase tracking-wider">Atalhos</h3>

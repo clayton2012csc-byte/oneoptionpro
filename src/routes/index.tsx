@@ -159,7 +159,7 @@ function ScanFilterPanel({ onScan, isScanning, progress, onClear }: { onScan: ()
   const { market, setMarket } = useMarketFilter();
 
   return (
-    <div className="relative mx-3 mb-6 overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.06] to-transparent p-4 shadow-xl backdrop-blur-md transition-colors hover:border-primary/20">
+    <div className="relative mx-3 mb-6 overflow-hidden rounded-xl glass p-4 shadow-lg transition-colors hover:border-primary/20">
       {/* Barra de progresso no topo */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-white/5">
         <div
@@ -210,7 +210,7 @@ function ScanFilterPanel({ onScan, isScanning, progress, onClear }: { onScan: ()
         <button
           onClick={onScan}
           disabled={isScanning}
-          className="flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 border border-blue-600 px-4 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-[rgba(234,88,12,0.25)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+          className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-primary border border-primary px-4 text-[11px] font-black uppercase tracking-widest text-primary-foreground shadow-md shadow-primary/15 transition-all hover:bg-primary/90 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
         >
           {isScanning ? <TrendingUp className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}
           {isScanning ? "Varrendo" : "Varrer Auto IA"}

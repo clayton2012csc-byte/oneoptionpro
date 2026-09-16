@@ -75,18 +75,18 @@ export const DateStrip = memo(function DateStrip({ selected }: { selected: strin
             key={iso}
             to="/"
             search={{ date: iso }}
-            className={`flex-1 min-w-[92px] px-4 h-16 flex flex-col items-center justify-center rounded-[1.25rem] text-center transition-all duration-300 active:scale-95 border ${
+            className={`flex-1 min-w-[92px] px-4 h-16 flex flex-col items-center justify-center rounded-xl text-center transition-all duration-300 active:scale-95 border ${
               isSel
-                ? "border-blue-600 bg-blue-600 text-white shadow-[0_0_18px_rgba(234,88,12,0.35)] ring-2 ring-white/30 scale-[1.02]"
-                : "border-blue-600/60 bg-blue-600/75 text-white/90 hover:bg-blue-600 hover:border-blue-600 hover:brightness-110"
+                ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/15 scale-[1.02]"
+                : "border-white/10 bg-card/65 text-foreground hover:bg-accent hover:border-white/15"
             }`}
           >
-            <span className={`text-[10px] font-black tracking-widest ${isSel ? "text-white" : "text-white/90"}`}>{label}</span>
-            <span className={`text-xs font-black tabular mt-0.5 ${isSel ? "text-white" : "text-white/80"}`}>{sub}</span>
+            <span className={`text-[10px] font-black tracking-widest ${isSel ? "text-primary-foreground" : "text-foreground"}`}>{label}</span>
+            <span className={`text-xs font-black tabular mt-0.5 ${isSel ? "text-primary-foreground" : "text-muted-foreground"}`}>{sub}</span>
           </Link>
         );
       })}
-      <button className="shrink-0 w-12 h-16 rounded-[1.25rem] bg-black/50 border border-white/5 flex items-center justify-center" title="Calendário">
+       <button className="shrink-0 w-12 h-16 rounded-xl bg-card/65 border border-white/10 flex items-center justify-center hover:bg-accent" title="Calendário">
         <Calendar className="w-4 h-4" />
       </button>
       <AutoStatusBadge />

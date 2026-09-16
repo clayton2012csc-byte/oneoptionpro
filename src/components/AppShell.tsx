@@ -22,7 +22,7 @@ function SectionMenu() {
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Escolher página"
-        className="inline-flex items-center gap-1 h-9 px-2 sm:px-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-bold hover:border-primary/40 transition"
+        className="inline-flex items-center gap-1 h-9 px-2 sm:px-2.5 rounded-lg bg-card/70 border border-white/10 text-xs font-bold hover:border-primary/40 transition backdrop-blur-xl"
       >
         <Globe className="w-4 h-4 text-primary" />
         <span className="hidden sm:inline max-w-[110px] truncate">
@@ -39,7 +39,7 @@ function SectionMenu() {
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-11 z-50 w-56 rounded-2xl bg-background border border-white/10 p-1.5 shadow-xl">
+          <div className="absolute right-0 top-11 z-50 w-56 rounded-xl glass p-1.5 shadow-xl">
             {SECTIONS.map((s) => {
               const isActive = active === s.id;
               return (
@@ -49,7 +49,7 @@ function SectionMenu() {
                     setActiveSection(s.id);
                     setOpen(false);
                   }}
-                  className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-sm text-left transition ${
+                    className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-left transition ${
                     isActive ? "bg-primary/15 text-primary" : "hover:bg-white/5 text-foreground"
                   }`}
                 >
@@ -93,10 +93,10 @@ function TopBar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-2xl border-b border-white/5 shadow-xl">
+    <header className="sticky top-0 z-30 bg-background/75 backdrop-blur-2xl border-b border-white/10 shadow-lg shadow-background/30">
       <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 h-16">
         <Link to="/" className="flex items-center gap-2 group shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-110 transition-all duration-300">
+          <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/15 group-hover:scale-105 transition-all duration-300">
             <span className="text-primary-foreground font-black text-base">1O</span>
           </div>
           <span className="hidden sm:inline text-xl font-black tracking-tighter text-foreground group-hover:opacity-80 transition-opacity">
@@ -110,7 +110,7 @@ function TopBar() {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="Times, ligas ou mercados..."
-            className="w-full h-11 pl-11 pr-4 rounded-2xl bg-white/5 border border-white/5 text-sm placeholder:text-muted-foreground/30 focus:outline-none focus:border-primary/40 focus:bg-white/[0.08] transition-all shadow-inner"
+            className="w-full h-11 pl-11 pr-4 rounded-xl bg-card/60 border border-white/10 text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/45 focus:bg-card/85 transition-all"
           />
         </form>
 
@@ -119,7 +119,7 @@ function TopBar() {
           <button
             onClick={refresh}
             disabled={fetching > 0}
-            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-blue-600 border border-blue-600 text-white text-xs font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(234,88,12,0.3)] hover:brightness-110 transition disabled:opacity-50"
+            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-lg bg-primary border border-primary text-primary-foreground text-xs font-bold uppercase tracking-wider shadow-md shadow-primary/10 hover:bg-primary/90 transition disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${fetching > 0 ? "animate-spin" : ""}`} />
             Atualizar
@@ -128,7 +128,7 @@ function TopBar() {
             onClick={refresh}
             disabled={fetching > 0}
             aria-label="Atualizar"
-            className="sm:hidden w-9 h-9 rounded-full bg-blue-600 border border-blue-600 text-white flex items-center justify-center shadow-[0_0_15px_rgba(234,88,12,0.3)] disabled:opacity-50"
+            className="sm:hidden w-9 h-9 rounded-lg bg-primary border border-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/10 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${fetching > 0 ? "animate-spin" : ""}`} />
           </button>
@@ -159,10 +159,11 @@ function TopBar() {
             ) : (
               <Link
                 to="/auth"
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
+                className="inline-flex items-center justify-center gap-1.5 w-9 sm:w-auto h-9 sm:px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
+                aria-label="Entrar"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                Entrar
+                <span className="hidden sm:inline">Entrar</span>
               </Link>
             ))}
         </div>
@@ -174,12 +175,12 @@ function TopBar() {
 function SectionRail() {
   const active = useActiveSection();
   return (
-    <aside className="hidden md:flex w-20 shrink-0 flex-col items-center gap-3 py-6 border-r border-white/5 bg-black/20 backdrop-blur-md">
+    <aside className="hidden md:flex w-20 shrink-0 flex-col items-center gap-3 py-6 border-r border-white/10 bg-card/25 backdrop-blur-xl">
       {SECTIONS.map((s) => {
         const isActive = active === s.id;
-        const cls = `w-14 py-3 rounded-2xl flex flex-col items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest transition-all duration-300 relative group ${
+        const cls = `w-14 py-3 rounded-xl flex flex-col items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest transition-all duration-300 relative group ${
           isActive
-            ? "bg-primary text-primary-foreground shadow-[0_0_20px_rgba(var(--primary),0.3)] border border-primary/50"
+            ? "bg-primary/15 text-primary border border-primary/30"
             : "text-muted-foreground hover:bg-white/10 hover:text-foreground border border-transparent"
         }`;
 
@@ -282,7 +283,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <SectionRail />
         <div className="flex-1 min-w-0 flex gap-3 p-2 sm:p-3 pb-24 md:pb-3">
           <LeagueSidebar />
-          <main className="flex-1 min-w-0 rounded-[2.5rem] bg-card/60 border border-white/5 overflow-hidden shadow-[0_0_50px_rgba(0,0,0,0.3)] backdrop-blur-md">
+          <main className="flex-1 min-w-0 rounded-2xl bg-card/45 border border-white/10 overflow-hidden shadow-xl shadow-background/35 backdrop-blur-xl">
             {children}
           </main>
           <RightPanel />
