@@ -11,7 +11,7 @@
 import type { ApiFixture, TeamPreviewStats } from "./api-football.functions";
 import { upcomingFixtures, recentFinishedIndex } from "./api-football-raw.server";
 import { computeOwnPrediction } from "./own-prediction";
-import { buildAutoPicks, gradeAutoPicks, readMatchNarrative, resultReason, type AutoPick, type MatchResult } from "./auto-ticket";
+import { buildAutoPicks, gradeAutoPicks, readMatchNarrative, resultReason, topExactScores, type AutoPick, type MatchResult } from "./auto-ticket";
 
 const LOCK_KEY = "auto_tickets_lock";
 const LOCK_TTL_MS = 4 * 60 * 1000;
@@ -280,6 +280,23 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
     pNoBTTS: pred.pNoBTTS,
     pCornersOver95: pred.pCornersOver95,
     bestProb: Math.max(pred.pUnder15, pred.pOver25, pred.pBTTS, pred.pCornersOver95),
+    kickoff: fx.fixture.date,
+    home: fx.teams.home.name,
+    away: fx.teams.away.name,
+    league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
+    // Todos os mercados do bilhete automático + placar exato mais provável (sempre presente
+    // para os selos aparecerem automaticamente nos cards, mesmo quando não é publicado).
+    picks: (() => {
+      const lite = picks.map((p) => ({ market: p.market, selection: p.selection, prob: p.prob }));
+      const top = topExactScores(pred.matrix)[0];
+      if (top) {
+        const entry = { market: "Placar Exato Seco", selection: `${top.i} - ${top.j}`, prob: top.p };
+        const idx = lite.findIndex((p) => p.market === "Placar Exato Seco");
+        if (idx >= 0) lite[idx] = entry;
+        else lite.push(entry);
+      }
+      return lite;
+    })(),
   };
 
   return {

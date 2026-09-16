@@ -45,6 +45,8 @@ export async function geminiChat(opts: {
   messages: ChatMessage[];
   temperature?: number;
   maxOutputTokens?: number;
+  /** Força a resposta como JSON (responseMimeType application/json). */
+  json?: boolean;
 }): Promise<string> {
   const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
   let lastError: Error | null = null;
@@ -67,7 +69,7 @@ export async function geminiChat(opts: {
 
 async function callGemini(
   model: string,
-  opts: { system: string[]; messages: ChatMessage[]; temperature?: number; maxOutputTokens?: number },
+  opts: { system: string[]; messages: ChatMessage[]; temperature?: number; maxOutputTokens?: number; json?: boolean },
 ): Promise<string> {
   const key = requireKey();
 
@@ -85,6 +87,7 @@ async function callGemini(
         generationConfig: {
           temperature: opts.temperature ?? 0.6,
           maxOutputTokens: opts.maxOutputTokens ?? 2048,
+          ...(opts.json ? { responseMimeType: "application/json" } : {}),
         },
       }),
     },

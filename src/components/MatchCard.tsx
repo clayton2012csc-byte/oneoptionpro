@@ -15,6 +15,7 @@ import { useMarketFilter } from "@/lib/market-filter";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { autoTicketStatus } from "@/lib/auto-tickets.functions";
 import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
+import { AiPickBadges } from "@/components/AiPickBadges";
 import { toast } from "sonner";
 
 const PIN_SECTIONS: { id: SectionId; icon: string; label: string }[] = [
@@ -184,6 +185,9 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
         </div>
       </div>
 
+      {/* Selos dos 11 mercados (Placar Exato + top 3) alimentados pela tabela ai_predictions */}
+      {!st.finished && <AiPickBadges fixtureId={fixture.fixture.id} />}
+
       {/* Footer: Market Odds & Shortcuts */}
       <div className="relative z-10 pt-4 mt-2 border-t border-white/5 flex items-center justify-between gap-4">
         <div className="flex-1 overflow-x-auto scrollbar-none">
@@ -294,10 +298,10 @@ function OddsStrip({ fixtureId, enabled }: { fixtureId: number; enabled: boolean
         {cells.map((c) => (
           <div
             key={c.k}
-            className="flex items-center justify-between gap-1.5 rounded-lg bg-black/50 border border-white/5 px-2.5 py-1.5 transition-all hover:bg-black/70 hover:border-white/10"
+            className="group flex items-center justify-between gap-1.5 rounded-lg bg-primary/10 border border-primary/20 px-2.5 py-1.5 transition-all hover:bg-blue-600 hover:border-blue-600 hover:shadow-[0_0_12px_rgba(234,88,12,0.3)]"
           >
-            <span className="text-[10px] font-black text-muted-foreground/50">{c.k}</span>
-            <span className="text-[11px] font-black tabular text-foreground">
+            <span className="text-[10px] font-black text-muted-foreground/60 transition-colors group-hover:text-white/80">{c.k}</span>
+            <span className="text-[11px] font-black tabular text-foreground transition-colors group-hover:text-white">
               {c.odd ? c.odd.toFixed(2) : isFetching || !data ? "—" : "–"}
             </span>
           </div>
@@ -313,9 +317,9 @@ function OddsStrip({ fixtureId, enabled }: { fixtureId: number; enabled: boolean
           ].filter((x) => x.odd) as { k: string; odd: number }[]).map((x) => (
             <span
               key={x.k}
-              className="text-[9px] font-bold tabular px-1 py-0.5 rounded border border-white/10 bg-black/30 text-muted-foreground"
+              className="group text-[9px] font-bold tabular px-1 py-0.5 rounded border border-primary/20 bg-primary/10 text-muted-foreground transition-colors hover:bg-blue-600 hover:border-blue-600 hover:shadow-[0_0_10px_rgba(234,88,12,0.3)]"
             >
-              {x.k} <span className="text-foreground">{x.odd.toFixed(2)}</span>
+              {x.k} <span className="text-foreground transition-colors group-hover:text-white">{x.odd.toFixed(2)}</span>
             </span>
           ))}
         </div>
@@ -545,15 +549,15 @@ function ProbabilityBadge({ fixture, isSelected }: { fixture: ApiFixture; isSele
           key={idx}
           className={`backdrop-blur-md border-l border-b border-t px-3 py-1 rounded-l-xl flex items-center gap-2 shadow-2xl transition-all duration-300 transform group-hover:translate-x-0 translate-x-1 ${
             badge.isBest || isSelected 
-              ? "bg-primary text-primary-foreground border-primary/50" 
+              ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_16px_rgba(234,88,12,0.4)]" 
               : "bg-black/60 border-white/10 text-primary"
           }`}
         >
           <div className="flex flex-col items-end leading-none">
-            <span className={`text-[7px] font-black uppercase tracking-[0.15em] ${badge.isBest || isSelected ? "text-primary-foreground/70" : "text-primary/70"}`}>
+            <span className={`text-[7px] font-black uppercase tracking-[0.15em] ${badge.isBest || isSelected ? "text-white/70" : "text-primary/70"}`}>
               {badge.isBest ? "IA INDICADO • " : ""}{badge.label}
             </span>
-            <span className={`text-[11px] font-black tabular mt-0.5 ${badge.isBest || isSelected ? "text-primary-foreground" : "text-white"}`}>{pctFmt(badge.p)}</span>
+            <span className={`text-[11px] font-black tabular mt-0.5 ${badge.isBest || isSelected ? "text-white" : "text-white"}`}>{pctFmt(badge.p)}</span>
           </div>
           <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${badge.isBest || isSelected ? "bg-white/20" : "bg-primary/20"}`}>
             {badge.isBest ? <Sparkles className="w-3.5 h-3.5" /> : <BrainCircuit className="w-3.5 h-3.5" />}

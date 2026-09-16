@@ -14,6 +14,13 @@ export type MarketFilterId =
   | "corners_o95"
   | "smart_ia";
 
+/** Subconjunto leve de um palpite do bilhete automático (11 mercados) persistido no card. */
+export interface AutoPickLite {
+  market: string;
+  selection: string;
+  prob: number;
+}
+
 export interface ScanPrediction {
   fixtureId: number;
   pUnder15: number;
@@ -26,6 +33,10 @@ export interface ScanPrediction {
   bestMarket?: MarketFilterId;
   bestProb?: number;
   topMarkets?: { id: MarketFilterId; prob: number }[];
+  /** início da partida (ISO) — usado pelo filtro "Próximas 3h" sem nova consulta */
+  kickoff?: string;
+  /** palpite de placar exato seco + demais mercados do bilhete automático */
+  picks?: AutoPickLite[];
 }
 
 interface MarketFilterState {

@@ -21,6 +21,7 @@ import { Route as LigaLeagueIdRouteImport } from './routes/liga.$leagueId'
 import { Route as TimeTeamIdRouteImport } from './routes/time.$teamId'
 import { Route as ApiPublicExportRouteImport } from './routes/api/public/export'
 import { Route as ApiPublicAiAutoTicketsRouteImport } from './routes/api/public/ai/auto-tickets'
+import { Route as ApiPublicAiComplexMarketsRouteImport } from './routes/api/public/ai/complex-markets'
 import { Route as ApiPublicAiRoundRouteImport } from './routes/api/public/ai/round'
 import { Route as ApiPublicAiSelftestRouteImport } from './routes/api/public/ai/selftest'
 import { Route as ApiPublicAiSettleRouteImport } from './routes/api/public/ai/settle'
@@ -85,6 +86,12 @@ const ApiPublicAiAutoTicketsRoute = ApiPublicAiAutoTicketsRouteImport.update({
   path: '/api/public/ai/auto-tickets',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAiComplexMarketsRoute =
+  ApiPublicAiComplexMarketsRouteImport.update({
+    id: '/api/public/ai/complex-markets',
+    path: '/api/public/ai/complex-markets',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicAiRoundRoute = ApiPublicAiRoundRouteImport.update({
   id: '/api/public/ai/round',
   path: '/api/public/ai/round',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/time/$teamId': typeof TimeTeamIdRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
+  '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
   '/api/public/ai/round': typeof ApiPublicAiRoundRoute
   '/api/public/ai/selftest': typeof ApiPublicAiSelftestRoute
   '/api/public/ai/settle': typeof ApiPublicAiSettleRoute
@@ -131,6 +139,7 @@ export interface FileRoutesByTo {
   '/time/$teamId': typeof TimeTeamIdRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
+  '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
   '/api/public/ai/round': typeof ApiPublicAiRoundRoute
   '/api/public/ai/selftest': typeof ApiPublicAiSelftestRoute
   '/api/public/ai/settle': typeof ApiPublicAiSettleRoute
@@ -149,6 +158,7 @@ export interface FileRoutesById {
   '/time/$teamId': typeof TimeTeamIdRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
+  '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
   '/api/public/ai/round': typeof ApiPublicAiRoundRoute
   '/api/public/ai/selftest': typeof ApiPublicAiSelftestRoute
   '/api/public/ai/settle': typeof ApiPublicAiSettleRoute
@@ -168,6 +178,7 @@ export interface FileRouteTypes {
     | '/time/$teamId'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
+    | '/api/public/ai/complex-markets'
     | '/api/public/ai/round'
     | '/api/public/ai/selftest'
     | '/api/public/ai/settle'
@@ -185,6 +196,7 @@ export interface FileRouteTypes {
     | '/time/$teamId'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
+    | '/api/public/ai/complex-markets'
     | '/api/public/ai/round'
     | '/api/public/ai/selftest'
     | '/api/public/ai/settle'
@@ -202,6 +214,7 @@ export interface FileRouteTypes {
     | '/time/$teamId'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
+    | '/api/public/ai/complex-markets'
     | '/api/public/ai/round'
     | '/api/public/ai/selftest'
     | '/api/public/ai/settle'
@@ -220,6 +233,7 @@ export interface RootRouteChildren {
   TimeTeamIdRoute: typeof TimeTeamIdRoute
   ApiPublicExportRoute: typeof ApiPublicExportRoute
   ApiPublicAiAutoTicketsRoute: typeof ApiPublicAiAutoTicketsRoute
+  ApiPublicAiComplexMarketsRoute: typeof ApiPublicAiComplexMarketsRoute
   ApiPublicAiRoundRoute: typeof ApiPublicAiRoundRoute
   ApiPublicAiSelftestRoute: typeof ApiPublicAiSelftestRoute
   ApiPublicAiSettleRoute: typeof ApiPublicAiSettleRoute
@@ -311,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAiAutoTicketsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/ai/complex-markets': {
+      id: '/api/public/ai/complex-markets'
+      path: '/api/public/ai/complex-markets'
+      fullPath: '/api/public/ai/complex-markets'
+      preLoaderRoute: typeof ApiPublicAiComplexMarketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/ai/round': {
       id: '/api/public/ai/round'
       path: '/api/public/ai/round'
@@ -348,6 +369,7 @@ const rootRouteChildren: RootRouteChildren = {
   TimeTeamIdRoute: TimeTeamIdRoute,
   ApiPublicExportRoute: ApiPublicExportRoute,
   ApiPublicAiAutoTicketsRoute: ApiPublicAiAutoTicketsRoute,
+  ApiPublicAiComplexMarketsRoute: ApiPublicAiComplexMarketsRoute,
   ApiPublicAiRoundRoute: ApiPublicAiRoundRoute,
   ApiPublicAiSelftestRoute: ApiPublicAiSelftestRoute,
   ApiPublicAiSettleRoute: ApiPublicAiSettleRoute,

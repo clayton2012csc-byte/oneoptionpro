@@ -119,7 +119,7 @@ function TopBar() {
           <button
             onClick={refresh}
             disabled={fetching > 0}
-            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-primary/15 border border-primary/30 text-primary text-xs font-bold uppercase tracking-wider hover:bg-primary/25 transition disabled:opacity-50"
+            className="hidden sm:inline-flex items-center gap-1.5 h-9 px-3 rounded-full bg-blue-600 border border-blue-600 text-white text-xs font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(234,88,12,0.3)] hover:brightness-110 transition disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${fetching > 0 ? "animate-spin" : ""}`} />
             Atualizar
@@ -128,7 +128,7 @@ function TopBar() {
             onClick={refresh}
             disabled={fetching > 0}
             aria-label="Atualizar"
-            className="sm:hidden w-9 h-9 rounded-full bg-primary/15 border border-primary/30 text-primary flex items-center justify-center disabled:opacity-50"
+            className="sm:hidden w-9 h-9 rounded-full bg-blue-600 border border-blue-600 text-white flex items-center justify-center shadow-[0_0_15px_rgba(234,88,12,0.3)] disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${fetching > 0 ? "animate-spin" : ""}`} />
           </button>

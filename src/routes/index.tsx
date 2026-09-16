@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState, useMemo, useEffect, useRef } from "react";
-import { Bell, BellOff, Star, Trophy, Search, Filter, AlertCircle, RefreshCw, ChevronRight, Clock, Info, CheckCircle2, TrendingUp, Sparkles, Folder } from "lucide-react";
+import { Bell, BellOff, Star, Trophy, Search, Filter, RefreshCw, ChevronRight, Clock, Info, CheckCircle2, TrendingUp, Sparkles, Folder } from "lucide-react";
 
 import { z } from "zod";
 import { getFixturesByDate, getLiveFixtures, getNextFixturesToScan, LIVE_STATUSES, FINISHED_STATUSES, type ApiFixture } from "@/lib/api-football.functions";
@@ -28,7 +28,7 @@ import { BackHeader } from "@/components/BackHeader";
 import { useMarketFilter, MarketFilterId } from "@/lib/market-filter";
 import { getBulkPredictions, ScanPrediction } from "@/lib/bulk-predictions.functions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Target, Scan } from "lucide-react";
+import { Scan } from "lucide-react";
 import { toast } from "sonner";
 
 const GROUP_CHUNK = 6; // ligas renderizadas por vez (scroll infinito)
@@ -86,10 +86,11 @@ export const Route = createFileRoute("/")({
   component: TodosPage,
 });
 
-type FilterId = "live" | "upcoming" | "finished";
+type FilterId = "live" | "upcoming" | "next3h" | "finished";
 const FILTERS: readonly { id: FilterId; label: string }[] = [
   { id: "live", label: "Ao Vivo (IA)" },
   { id: "upcoming", label: "Próximos" },
+  { id: "next3h", label: "Próximas 3h" },
   { id: "finished", label: "Encerrados" },
 ] as const;
 
@@ -140,6 +141,14 @@ function applyFilter(fixtures: ApiFixture[], filter: FilterId, nowMs: number): A
       // para as próximas partidas mesmo se a atualização da API atrasar.
       return fixtures.filter(isUpcoming).sort(byTimeAsc);
 
+    case "next3h":
+      // Somente partidas futuras que começam dentro das próximas 3 horas.
+      // Usa a mesma query já cacheada (q) → troca de filtro 100% instantânea.
+      return fixtures
+        .filter(isUpcoming)
+        .filter((f) => f.fixture.timestamp * 1000 <= nowMs + 3 * HOUR_MS)
+        .sort(byTimeAsc);
+
     default:
       return [...fixtures].sort(byTimeAsc);
   }
@@ -150,93 +159,77 @@ function ScanFilterPanel({ onScan, isScanning, progress, onClear }: { onScan: ()
   const { market, setMarket } = useMarketFilter();
 
   return (
-    <div className="mx-3 mb-8 p-6 rounded-[2.5rem] glass border border-white/5 shadow-2xl overflow-hidden relative group animate-in fade-in slide-in-from-top-4 duration-700">
-      {isScanning && (
-        <div className="absolute top-0 left-0 right-0 h-1 bg-primary/10">
-          <div 
-            className="h-full bg-primary transition-all duration-300 ease-out shadow-[0_0_12px_rgba(var(--primary),0.6)]"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      )}
-      
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5 text-primary">
-            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center border border-primary/30">
-              <Target className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-black uppercase tracking-widest">Robô de Varredura OneOption</span>
+    <div className="relative mx-3 mb-6 overflow-hidden rounded-2xl border border-white/5 bg-gradient-to-br from-white/[0.06] to-transparent p-4 shadow-xl backdrop-blur-md transition-colors hover:border-primary/20">
+      {/* Barra de progresso no topo */}
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-white/5">
+        <div
+          className="h-full bg-gradient-to-r from-primary/70 to-primary transition-all duration-300 ease-out"
+          style={{ width: `${isScanning ? progress : 0}%` }}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            {isScanning && <span className="absolute -inset-1 animate-ping rounded-xl bg-primary/10" />}
           </div>
-          <button 
+          <div className="min-w-0 leading-tight">
+            <p className="truncate text-[10px] font-black uppercase tracking-[0.2em] text-primary">Robô de Varredura</p>
+            <p className="truncate text-[8px] font-bold uppercase tracking-widest text-muted-foreground/70">OneOption · Auto IA</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {isScanning && (
+            <span className="animate-pulse text-[9px] font-black uppercase tracking-widest text-primary tabular-nums">
+              {Math.round(progress)}%
+            </span>
+          )}
+          <button
             onClick={(e) => { e.stopPropagation(); onClear(); }}
-            className="text-[9px] font-bold text-muted-foreground hover:text-destructive transition-colors uppercase tracking-tighter"
+            className="rounded-lg px-2 py-1 text-[8px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-white/5 hover:text-destructive"
           >
             Limpar Selos
           </button>
-          {isScanning && (
-            <div className="flex flex-col items-end">
-              <span className="text-[10px] font-black text-primary animate-pulse tabular tracking-widest uppercase">
-                Analisando {Math.round(progress)}%
-              </span>
-            </div>
-          )}
-        </div>
-        
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={onScan}
-            disabled={isScanning}
-            className="w-full h-14 rounded-2xl bg-primary text-primary-foreground font-black text-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100 shadow-xl shadow-primary/20 hover:brightness-110 uppercase tracking-widest"
-          >
-            {isScanning ? (
-              <TrendingUp className="w-5 h-5 animate-spin" />
-            ) : (
-              <Scan className="w-5 h-5" />
-            )}
-            {isScanning ? "Varrendo Dados da API..." : "Varrer Jogos da API (Auto IA)"}
-          </button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="col-span-2">
-              <Select value={market} onValueChange={(v) => setMarket(v as MarketFilterId)}>
-                <SelectTrigger className="w-full bg-black/40 border-white/5 h-11 rounded-xl text-xs font-bold transition-all hover:bg-black/60 focus:ring-primary/40">
-                  <SelectValue placeholder="Ver mercado específico" />
-                </SelectTrigger>
-                <SelectContent className="rounded-2xl glass border-white/10">
-                  {Object.entries(MARKET_LABELS).map(([id, label]) => (
-                    <SelectItem key={id} value={id} className="text-xs font-bold focus:bg-primary focus:text-primary-foreground rounded-lg mx-1 my-0.5">
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {market !== "none" && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/10 px-3 py-2.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-primary leading-tight">
-                Ordenando por {MARKET_LABELS[market]} — nenhum jogo é escondido
-              </span>
-              <button
-                onClick={() => setMarket("none")}
-                className="shrink-0 text-[9px] font-black uppercase tracking-tighter text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Limpar
-              </button>
-            </div>
-          )}
-        </div>
-        
-        
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground/60 bg-black/40 p-3 rounded-2xl border border-white/5">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0 text-primary/60" />
-          <span className="font-semibold leading-relaxed">
-            Varra os jogos disponíveis na API de dados/odds. As informações exibidas são baseadas nos dados reais processados pelo sistema OneOption IA.
-          </span>
         </div>
       </div>
+
+      <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+        <Select value={market} onValueChange={(v) => setMarket(v as MarketFilterId)}>
+          <SelectTrigger className="h-9 w-full rounded-xl border-white/5 bg-black/40 text-[11px] font-semibold transition-all hover:bg-black/60 focus:ring-primary/40">
+            <SelectValue placeholder="Filtro de mercado (opcional)" />
+          </SelectTrigger>
+          <SelectContent className="rounded-xl glass border-white/10">
+            {Object.entries(MARKET_LABELS).map(([id, label]) => (
+              <SelectItem key={id} value={id} className="mx-1 my-0.5 rounded-lg text-[11px] font-bold focus:bg-primary focus:text-primary-foreground">
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <button
+          onClick={onScan}
+          disabled={isScanning}
+          className="flex h-9 items-center justify-center gap-1.5 rounded-xl bg-blue-600 border border-blue-600 px-4 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-[rgba(234,88,12,0.25)] transition-all hover:brightness-110 active:scale-95 disabled:opacity-40 disabled:active:scale-100"
+        >
+          {isScanning ? <TrendingUp className="h-4 w-4 animate-spin" /> : <Scan className="h-4 w-4" />}
+          {isScanning ? "Varrendo" : "Varrer Auto IA"}
+        </button>
+      </div>
+
+      {market !== "none" && (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/10 px-3 py-1.5">
+          <span className="truncate text-[9px] font-bold uppercase tracking-widest text-primary">
+            Ordenando por {MARKET_LABELS[market]}
+          </span>
+          <button
+            onClick={() => setMarket("none")}
+            className="shrink-0 text-[8px] font-black uppercase tracking-tighter text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Limpar
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -564,7 +557,7 @@ function TodosPage() {
                   onClick={() => setGroupMode(m.id)}
                   className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-300 active:scale-95 ${
                     active
-                      ? "bg-primary/15 text-primary border-primary/40"
+                      ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_12px_rgba(234,88,12,0.3)]"
                       : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -585,6 +578,7 @@ function TodosPage() {
         <EmptyState 
           text={
             filter === "live" ? "Nenhum jogo ao vivo no momento." :
+            filter === "next3h" ? "Nenhum jogo previsto para as próximas 3 horas." :
             filter === "finished" ? "Nenhum jogo encerrado nesta data." :
             search ? `Nenhum jogo encontrado para "${search}".` :
             "Sem jogos disponíveis para este filtro."

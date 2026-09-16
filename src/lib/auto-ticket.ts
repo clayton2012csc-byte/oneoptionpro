@@ -87,6 +87,19 @@ export const CRITICAL_CEILING: Record<string, number> = {
 /** Odd mínima recomendada para compensar a taxa histórica de acerto do Seco. */
 export const MIN_EXACT_ODD = 6.0;
 
+/** Placar(es) exato(s) mais provável(is) da matriz de Poisson (maior probabilidade primeiro). */
+export function topExactScores(m: number[][] | undefined): { i: number; j: number; p: number }[] {
+  if (!m || !m.length) return [];
+  const out: { i: number; j: number; p: number }[] = [];
+  for (let i = 0; i < m.length; i++) {
+    for (let j = 0; j < m[i].length; j++) {
+      const p = m[i][j] || 0;
+      if (p > 0) out.push({ i, j, p });
+    }
+  }
+  return out.sort((a, b) => b.p - a.p);
+}
+
 const odd = (p: number) => (p > 0.001 ? Math.round((1 / p) * 100) / 100 : 0);
 const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
 
