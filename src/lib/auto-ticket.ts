@@ -198,10 +198,77 @@ export function readMatchNarrative(pred: OwnPrediction, ctx: AutoTicketContext):
   return { flow, dominant, goalsSide, btts, cornersSide, cardsSide, result, expectedGoals: eg, headline };
 }
 
+/* ============================================================
+ * MERCADO "GOLS DINÂMICO" — linha adaptativa documentada
+ *
+ * Critérios de decisão (nesta ordem de precedência):
+ *   1. xG total > 2.8            -> "Over 2.5"     (Mais de 2.5 gols)
+ *   2. xG total entre 1.8 e 2.7  -> "Over 1.5"     (Mais de 1.5 gols)
+ *   3. xG do 1º tempo > 1.2      -> "Over 0.5 HT"  (Mais de 0.5 gol no 1º tempo)
+ *   4. xG total < 1.7            -> "Under 3.5"    (Menos de 3.5 gols)
+ *   5. fora das faixas acima     -> "Over 1.5"     (linha neutra de segurança)
+ *
+ * xG total = lambdaHome + lambdaAway (Poisson/Dixon-Coles).
+ * xG do 1º tempo = xG total * HT_SHARE (45% dos gols).
+ * O rótulo escolhido é gravado como `market_sub_type` em `ai_predictions`
+ * e em `auto_tickets.meta.goalsSubType`.
+ * ========================================================== */
+export type GoalsSubType = "Over 2.5" | "Over 1.5" | "Over 0.5 HT" | "Under 3.5";
+
+export interface DynamicGoalsChoice {
+  subType: GoalsSubType;
+  label: string;
+  prob: number;
+  rule: PickRule;
+}
+
+/** Fatia dos gols atribuída ao 1º tempo (mesma constante do motor Poisson). */
+export const HT_GOALS_SHARE = 0.45;
+
+export function pickDynamicGoals(pred: OwnPrediction): DynamicGoalsChoice {
+  const xg = pred.lambdaHome + pred.lambdaAway;
+  const xgHt = xg * HT_GOALS_SHARE;
+
+  const over15: DynamicGoalsChoice = {
+    subType: "Over 1.5",
+    label: "Mais de 1.5 gols",
+    prob: pred.pOver15,
+    rule: { t: "totals", line: 1.5, side: "over" },
+  };
+
+  if (xg > 2.8) {
+    return {
+      subType: "Over 2.5",
+      label: "Mais de 2.5 gols",
+      prob: pred.pOver25,
+      rule: { t: "totals", line: 2.5, side: "over" },
+    };
+  }
+  if (xg >= 1.8 && xg <= 2.7) return over15;
+  if (xgHt > 1.2) {
+    return {
+      subType: "Over 0.5 HT",
+      label: "Mais de 0.5 gol no 1º tempo",
+      prob: 1 - Math.exp(-xgHt),
+      rule: { t: "ht_totals", line: 0.5, side: "over" },
+    };
+  }
+  if (xg < 1.7) {
+    return {
+      subType: "Under 3.5",
+      label: "Menos de 3.5 gols",
+      prob: 1 - pred.pOver35,
+      rule: { t: "totals", line: 3.5, side: "under" },
+    };
+  }
+  return over15;
+}
+
 /** aplica o lado escolhido pelo cenário, devolvendo a prob real daquele lado */
 function sided(pOver: number, side: "over" | "under", overLabel: string, underLabel: string) {
   return side === "over" ? { p: pOver, label: overLabel } : { p: 1 - pOver, label: underLabel };
 }
+
 
 export function buildAutoPicks(pred: OwnPrediction, ctx: AutoTicketContext): AutoPick[] {
   const m = pred.matrix;
