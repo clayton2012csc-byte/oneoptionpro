@@ -2,5 +2,11 @@
   "buildCommand": "vite build",
   "outputDirectory": ".vercel/output",
   "installCommand": "npm install",
-  "framework": null
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/public/ai/auto-tickets?mode=grade",
+      "schedule": "0 */1 * * *"
+    }
+  ]
 }
