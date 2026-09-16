@@ -9,6 +9,7 @@ import { requiredConfidence } from "./ticket-rules";
 export type PickRule =
   | { t: "1x2"; pick: "H" | "D" | "A" }
   | { t: "totals"; line: number; side: "over" | "under" }
+  | { t: "ht_totals"; line: number; side: "over" | "under" }
   | { t: "btts"; yes: boolean }
   | { t: "corners"; line: number; side: "over" | "under" }
   | { t: "cards"; line: number; side: "over" | "under" }
@@ -18,6 +19,7 @@ export type PickRule =
   | { t: "margin_or_draw"; side: "H" | "A" }
   | { t: "evolution"; first: "H" | "A" | "none"; res: "H" | "D" | "A" }
   | { t: "combo"; legs: PickRule[] };
+
 
 export interface AutoPick {
   market: string;
