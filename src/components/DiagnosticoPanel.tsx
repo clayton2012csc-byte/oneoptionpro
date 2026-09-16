@@ -148,8 +148,9 @@ export function DiagnosticoPanel() {
     if (!user) return;
     try {
       await saveTurnFn({ data: { messages: turn } });
-    } catch {
-      /* histórico é best-effort */
+    } catch (e) {
+      // Histórico é best-effort, mas falha silenciosa impede o diagnóstico do problema.
+      console.warn("[assistente] não consegui salvar o histórico no banco:", (e as Error).message);
     }
   };
 
