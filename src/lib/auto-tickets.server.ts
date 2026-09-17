@@ -546,6 +546,15 @@ export async function gradePending(limit = 400): Promise<number> {
       console.warn("[auto-tickets] falha ao gravar conferência", row.fixture_id, error.message);
       return false;
     }
+
+    // Conferência independente da Triagem (cada mercado isolado).
+    try {
+      const { gradeTriagemFixture } = await import("./triagem.server");
+      await gradeTriagemFixture(Number(row.fixture_id), result.goalsH, result.goalsA);
+    } catch (e) {
+      console.warn("[triagem] conferência falhou", row.fixture_id, (e as Error).message);
+    }
+
     return true;
   };
 
