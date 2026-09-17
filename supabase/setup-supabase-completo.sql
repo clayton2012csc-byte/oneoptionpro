@@ -88,6 +88,8 @@ CREATE TABLE IF NOT EXISTS public.ai_predictions (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE public.ai_predictions ADD COLUMN IF NOT EXISTS result jsonb;
+-- linha dinâmica escolhida no mercado "Gols Dinâmico" (ex.: "Over 1.5", "Over 0.5 HT")
+ALTER TABLE public.ai_predictions ADD COLUMN IF NOT EXISTS market_sub_type text;
 CREATE INDEX IF NOT EXISTS ai_predictions_round_idx ON public.ai_predictions(round_id);
 CREATE INDEX IF NOT EXISTS ai_predictions_fixture_idx ON public.ai_predictions(fixture_id);
 GRANT SELECT, INSERT, UPDATE ON public.ai_predictions TO anon, authenticated;
