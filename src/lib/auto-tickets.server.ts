@@ -205,8 +205,12 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
         try {
           const built = await buildRow(fx, idx);
           if (built) {
-            const { scan, ...row } = built;
+            const { scan, triagem, ...row } = built;
             await db.from("auto_tickets").upsert(row, { onConflict: "fixture_id" });
+            if (triagem.length) {
+              const { saveTriagem } = await import("./triagem.server");
+              await saveTriagem(triagem).catch(() => 0);
+            }
             scans.push({
               fixture_id: scan.fixtureId,
               market: "scan_snapshot",
@@ -216,6 +220,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
               score: 0,
               features: scan as unknown as never,
             });
+
           } else {
             // Sem amostra suficiente: registra como "skipped" para não travar o progresso.
             await db.from("auto_tickets").upsert(
