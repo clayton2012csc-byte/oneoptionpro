@@ -1,9 +1,11 @@
-import { Target, TrendingUp, AlertCircle, Scan, Trophy, LayoutDashboard, Zap, FlaskConical, Radio, Crown, ClipboardList, Star, Bot } from "lucide-react";
+import { Target, TrendingUp, AlertCircle, Scan, Trophy, LayoutDashboard, Zap, FlaskConical, Radio, Crown, ClipboardList, Star, Bot, Filter } from "lucide-react";
 import { setActiveSection, useActiveSection } from "@/lib/active-section";
 
 export const SECTIONS: { id: string; label: string; icon: string; lucide: any; href?: string }[] = [
   { id: "dashboard-clayton", label: "Dashboard Clayton", icon: "💎", lucide: LayoutDashboard },
+  { id: "triagem", label: "Triagem", icon: "🔎", lucide: Filter, href: "/triagem" },
   { id: "bingao", label: "Bingão", icon: "🎯", lucide: Target },
+
   { id: "loteca", label: "Lotéca IA", icon: "🎟️", lucide: ClipboardList },
   { id: "radar", label: "Radar OneOption", icon: "⚡", lucide: Zap },
   { id: "beta", label: "Beta", icon: "🧪", lucide: FlaskConical },

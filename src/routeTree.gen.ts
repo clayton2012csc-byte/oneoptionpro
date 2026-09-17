@@ -16,6 +16,7 @@ import { Route as LiveRouteImport } from './routes/live'
 import { Route as PlacarRouteImport } from './routes/placar'
 import { Route as ProximoRouteImport } from './routes/proximo'
 import { Route as SeguinteRouteImport } from './routes/seguinte'
+import { Route as TriagemRouteImport } from './routes/triagem'
 import { Route as JogoFixtureIdRouteImport } from './routes/jogo.$fixtureId'
 import { Route as LigaLeagueIdRouteImport } from './routes/liga.$leagueId'
 import { Route as TimeTeamIdRouteImport } from './routes/time.$teamId'
@@ -59,6 +60,11 @@ const ProximoRoute = ProximoRouteImport.update({
 const SeguinteRoute = SeguinteRouteImport.update({
   id: '/seguinte',
   path: '/seguinte',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TriagemRoute = TriagemRouteImport.update({
+  id: '/triagem',
+  path: '/triagem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const JogoFixtureIdRoute = JogoFixtureIdRouteImport.update({
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
   '/seguinte': typeof SeguinteRoute
+  '/triagem': typeof TriagemRoute
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
   '/seguinte': typeof SeguinteRoute
+  '/triagem': typeof TriagemRoute
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
   '/seguinte': typeof SeguinteRoute
+  '/triagem': typeof TriagemRoute
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/placar'
     | '/proximo'
     | '/seguinte'
+    | '/triagem'
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/placar'
     | '/proximo'
     | '/seguinte'
+    | '/triagem'
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/placar'
     | '/proximo'
     | '/seguinte'
+    | '/triagem'
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   PlacarRoute: typeof PlacarRoute
   ProximoRoute: typeof ProximoRoute
   SeguinteRoute: typeof SeguinteRoute
+  TriagemRoute: typeof TriagemRoute
   JogoFixtureIdRoute: typeof JogoFixtureIdRoute
   LigaLeagueIdRoute: typeof LigaLeagueIdRoute
   TimeTeamIdRoute: typeof TimeTeamIdRoute
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       path: '/seguinte'
       fullPath: '/seguinte'
       preLoaderRoute: typeof SeguinteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/triagem': {
+      id: '/triagem'
+      path: '/triagem'
+      fullPath: '/triagem'
+      preLoaderRoute: typeof TriagemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/jogo/$fixtureId': {
@@ -364,6 +384,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlacarRoute: PlacarRoute,
   ProximoRoute: ProximoRoute,
   SeguinteRoute: SeguinteRoute,
+  TriagemRoute: TriagemRoute,
   JogoFixtureIdRoute: JogoFixtureIdRoute,
   LigaLeagueIdRoute: LigaLeagueIdRoute,
   TimeTeamIdRoute: TimeTeamIdRoute,
