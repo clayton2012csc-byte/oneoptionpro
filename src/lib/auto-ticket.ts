@@ -560,6 +560,11 @@ function gradeRule(rule: PickRule, r: MatchResult): boolean | null {
     }
     case "totals":
       return rule.side === "over" ? total > rule.line : total < rule.line;
+    case "ht_totals": {
+      if (r.htH == null || r.htA == null) return null;
+      const htTotal = r.htH + r.htA;
+      return rule.side === "over" ? htTotal > rule.line : htTotal < rule.line;
+    }
     case "btts":
       return (r.goalsH > 0 && r.goalsA > 0) === rule.yes;
     case "corners":
@@ -614,6 +619,10 @@ export function pickEvidence(rule: PickRule, r: MatchResult): string {
       return `Resultado final: ${winner} (${r.goalsH} - ${r.goalsA})`;
     case "totals":
       return `Total apurado: ${total} ${total === 1 ? "gol" : "gols"} (${r.goalsH} - ${r.goalsA})`;
+    case "ht_totals":
+      return r.htH == null || r.htA == null
+        ? "Placar do 1º tempo não fornecido pela API para esta liga"
+        : `1º tempo apurado: ${r.htH + r.htA} ${r.htH + r.htA === 1 ? "gol" : "gols"} (${r.htH} - ${r.htA})`;
     case "btts":
       return `Ambas marcaram: ${r.goalsH > 0 && r.goalsA > 0 ? "Sim" : "Não"} (${r.goalsH} - ${r.goalsA})`;
     case "corners":
