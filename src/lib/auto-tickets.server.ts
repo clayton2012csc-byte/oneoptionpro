@@ -390,6 +390,8 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
 
   return {
     scan,
+    triagem,
+
     fixture_id: fx.fixture.id,
     kickoff: fx.fixture.date,
     league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
