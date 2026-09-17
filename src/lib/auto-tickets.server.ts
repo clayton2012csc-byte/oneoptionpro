@@ -205,8 +205,12 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
         try {
           const built = await buildRow(fx, idx);
           if (built) {
-            const { scan, ...row } = built;
+            const { scan, triagem, ...row } = built;
             await db.from("auto_tickets").upsert(row, { onConflict: "fixture_id" });
+            if (triagem.length) {
+              const { saveTriagem } = await import("./triagem.server");
+              await saveTriagem(triagem).catch(() => 0);
+            }
             scans.push({
               fixture_id: scan.fixtureId,
               market: "scan_snapshot",
@@ -216,6 +220,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
               score: 0,
               features: scan as unknown as never,
             });
+
           } else {
             // Sem amostra suficiente: registra como "skipped" para não travar o progresso.
             await db.from("auto_tickets").upsert(
@@ -329,6 +334,21 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
 
   const goalsSubType = picks.find((p) => p.market === "Gols Dinâmico")?.subType ?? null;
 
+  // Triagem — filtro de elite funilizado (9 mercados isolados, nota >= 75).
+  const { routeToTriagem } = await import("./triagem-engine");
+  const triagem = routeToTriagem(pred, {
+    fixtureId: fx.fixture.id,
+    matchName: `${fx.teams.home.name} x ${fx.teams.away.name}`,
+    league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
+    kickoff: fx.fixture.date,
+    homeGoalsForAvgL10: home10.goalsForAvg,
+    awayGoalsForAvgL10: away10.goalsForAvg,
+    homeCleanSheetPct: home10.cleanSheetPct,
+    awayCleanSheetPct: away10.cleanSheetPct,
+  });
+
+
+
   const scan = {
     fixtureId: fx.fixture.id,
     goalsSubType,
@@ -375,6 +395,8 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
 
   return {
     scan,
+    triagem,
+
     fixture_id: fx.fixture.id,
     kickoff: fx.fixture.date,
     league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
@@ -524,6 +546,15 @@ export async function gradePending(limit = 400): Promise<number> {
       console.warn("[auto-tickets] falha ao gravar conferência", row.fixture_id, error.message);
       return false;
     }
+
+    // Conferência independente da Triagem (cada mercado isolado).
+    try {
+      const { gradeTriagemFixture } = await import("./triagem.server");
+      await gradeTriagemFixture(Number(row.fixture_id), result.goalsH, result.goalsA);
+    } catch (e) {
+      console.warn("[triagem] conferência falhou", row.fixture_id, (e as Error).message);
+    }
+
     return true;
   };
 
