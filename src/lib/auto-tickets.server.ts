@@ -329,6 +329,21 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
 
   const goalsSubType = picks.find((p) => p.market === "Gols Dinâmico")?.subType ?? null;
 
+  // Triagem — filtro de elite funilizado (9 mercados isolados, nota >= 75).
+  const { routeToTriagem } = await import("./triagem-engine");
+  const triagem = routeToTriagem(pred, {
+    fixtureId: fx.fixture.id,
+    matchName: `${fx.teams.home.name} x ${fx.teams.away.name}`,
+    league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
+    kickoff: fx.fixture.date,
+    homeGoalsForAvgL10: home10.goalsForAvg,
+    awayGoalsForAvgL10: away10.goalsForAvg,
+    homeCleanSheetPct: home10.cleanSheetPct,
+    awayCleanSheetPct: away10.cleanSheetPct,
+  });
+
+
+
   const scan = {
     fixtureId: fx.fixture.id,
     goalsSubType,
