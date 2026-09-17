@@ -5,6 +5,7 @@
  */
 import type { OwnPrediction } from "./own-prediction";
 import { requiredConfidence } from "./ticket-rules";
+import { combinePillarScores, mergeEliteMin, scorePick, type PillarInput, type PillarScore, type PickSelector } from "./five-pillars";
 
 export type PickRule =
   | { t: "1x2"; pick: "H" | "D" | "A" }
@@ -33,6 +34,16 @@ export interface AutoPick {
   status?: "green" | "red" | "void";
   /** justificativa textual do resultado real (auditoria) */
   evidence?: string;
+  /** nota 0..100 dos 5 Pilares (Filtro de Elite) */
+  score?: number;
+  /** mínimo exigido pelo mercado (ai_weights) no Filtro de Elite */
+  pillarMin?: number;
+  /** Filtro de Elite: o palpite pode ser emitido como aposta? */
+  elite?: boolean;
+  /** notas de cada pilar (0..1) — exibição/depuração */
+  pillar?: { p1: number; p2: number; p3: number; p4: number; p5: number } | null;
+  /** notas contextuais (juiz, L10, H2H) */
+  pillarNotes?: string[];
 }
 
 export interface AutoTicketContext {
@@ -42,6 +53,10 @@ export interface AutoTicketContext {
   cornersOver95?: number;
   /** prob. de Mais de 4.5 cartões */
   cardsOver45?: number;
+  /** dados dos 5 Pilares — quando presente, cada pick recebe score + Filtro de Elite */
+  pillars?: PillarInput;
+  /** mínimos por mercado vindos de ai_weights (mesclados com padrões) */
+  eliteMin?: Record<string, number>;
 }
 
 export interface MatchResult {
@@ -541,11 +556,74 @@ export function buildAutoPicks(pred: OwnPrediction, ctx: AutoTicketContext): Aut
      A confiança é medida contra o teto realista de cada mercado (a maior
      probabilidade que ele costuma atingir). Só publica quando a confiança
      do modelo for superior a 65%. */
-  return picks.filter((p) => {
+  const confident = picks.filter((p) => {
     const ceiling = CRITICAL_CEILING[p.market];
     if (!ceiling) return true;
     return p.prob / ceiling > requiredConfidence(p.market);
   });
+
+  // Fase C — Filtro de Elite (5 Pilares): quando há dados (ctx.pillars),
+  // cada pick recebe o Score de Confiança e a nota mínima do mercado.
+  // Nenhum mercado é removido: todos continuam gerados e com score para o
+  // front-end; apenas o "emitir como aposta" fica condicionado ao Elite.
+  if (!ctx.pillars) return confident;
+
+  const minMap = mergeEliteMin(ctx.eliteMin);
+  const repo = new Map<AutoPick, PillarScore>();
+  const scored: AutoPick[] = [];
+  for (const p of confident) {
+    let ps: PillarScore;
+    if (p.rule.t === "combo") {
+      const legScores = p.rule.legs
+        .map((l) => {
+          const ref = confident.find((x) => x.rule === l);
+          return ref ? repo.get(ref) : undefined;
+        })
+        .filter((x): x is PillarScore => Boolean(x));
+      ps =
+        legScores.length === 2
+          ? combinePillarScores(legScores)!
+          : scorePick(p.market, p.prob, { line: null }, ctx.pillars, minMap[p.market] ?? 65);
+    } else {
+      ps = scorePick(p.market, p.prob, pickSelector(p.market, p.rule), ctx.pillars, minMap[p.market] ?? 65);
+    }
+    repo.set(p, ps);
+    scored.push({
+      ...p,
+      score: ps.score,
+      pillarMin: ps.min,
+      elite: ps.elite,
+      pillar: ps.breakdown,
+      pillarNotes: ps.notes,
+    });
+  }
+  return scored;
+}
+
+/** Traduz um PickRule no seletor que orienta o score dos 5 Pilares. */
+function pickSelector(_market: string, rule: PickRule): PickSelector {
+  switch (rule.t) {
+    case "1x2":
+      return { line: null, side: rule.pick };
+    case "totals":
+    case "ht_totals":
+    case "corners":
+    case "cards":
+      return { line: rule.line, over: rule.side === "over" };
+    case "btts":
+      return { line: null, bttsYes: rule.yes };
+    case "htft":
+      return { line: null, side: rule.ft === "1" ? "H" : rule.ft === "2" ? "A" : "D" };
+    case "scores":
+      return { line: null, exact: rule.list[0] ?? null };
+    case "margin":
+    case "margin_or_draw":
+      return { line: null, side: rule.side };
+    case "evolution":
+      return { line: null, side: rule.res };
+    case "combo":
+      return { line: null };
+  }
 }
 
 

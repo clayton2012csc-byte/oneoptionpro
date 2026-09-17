@@ -5,7 +5,11 @@
   "framework": null,
   "crons": [
     {
-      "path": "/api/public/ai/auto-tickets?mode=grade",
+      "path": "/api/public/ai/auto-tickets?limit=500",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/public/ai/auto-tickets?mode=grade&limit=200",
       "schedule": "0 */1 * * *"
     }
   ]

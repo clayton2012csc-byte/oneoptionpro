@@ -12,6 +12,7 @@ import type { ApiFixture, TeamPreviewStats } from "./api-football.functions";
 import { upcomingFixtures, recentFinishedIndex } from "./api-football-raw.server";
 import { computeOwnPrediction } from "./own-prediction";
 import { buildAutoPicks, gradeAutoPicks, readMatchNarrative, resultReason, topExactScores, type AutoPick, type MatchResult } from "./auto-ticket";
+import { mergeEliteMin, type PillarInput, type PillarReferee } from "./five-pillars";
 
 const LOCK_KEY = "auto_tickets_lock";
 const LOCK_TTL_MS = 4 * 60 * 1000;
@@ -23,6 +24,29 @@ const GAP_MS = 150; // espacamento entre jogos (plano Pro)
 const HORIZON_HOURS = 24;
 const CORNERS_AVG = 5.0; // estimativa quando não há estatística disponível
 const CARDS_AVG = 2.0;
+
+// ── Loader dos mínimos do Filtro de Elite (ai_weights, cacheado 15 min) ──
+let eliteMinCache: { at: number; min: Record<string, number> } | null = null;
+async function loadEliteMin(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (eliteMinCache && now - eliteMinCache.at < 15 * 60 * 1000) return eliteMinCache.min;
+  let db: Record<string, number> | null | undefined;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("ai_weights")
+      .select("weights")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const w = (data?.weights as unknown as { minimum_scores?: Record<string, number> } | null) ?? null;
+    db = w?.minimum_scores ?? null;
+  } catch (e) {
+    console.warn("[auto-tickets] loadEliteMin failed", (e as Error).message);
+  }
+  eliteMinCache = { at: now, min: mergeEliteMin(db) };
+  return eliteMinCache.min;
+}
 
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -179,7 +203,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
       const idx = await recentFinishedIndex(12);
       for (const fx of pending.slice(0, genBudget)) {
         try {
-          const built = buildRow(fx, idx);
+          const built = await buildRow(fx, idx);
           if (built) {
             const { scan, ...row } = built;
             await db.from("auto_tickets").upsert(row, { onConflict: "fixture_id" });
@@ -259,7 +283,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
   }
 }
 
-function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
+async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const home = teamStatsFromIndex(fx.teams.home.id, idx);
   const away = teamStatsFromIndex(fx.teams.away.id, idx);
   if (!home.played || !away.played) return null;
@@ -267,15 +291,41 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const pred = computeOwnPrediction(home, away);
   if (!pred.ready) return null;
 
+  // 5 Pilares — contexto alimentado SEM novas chamadas de API:
+  // L10 (últimos 10 jogos do índice), árbitro (nome do fixture) e H2H neutro.
+  const home10 = teamStatsFromIndex(fx.teams.home.id, idx, 10);
+  const away10 = teamStatsFromIndex(fx.teams.away.id, idx, 10);
+  const referee: PillarReferee = {
+    name: fx.fixture.referee ?? null,
+    cardsPerGame: null, // sem banco de arbitragem → P3 neutro até haver estatísticas
+    foulsPerGame: null,
+    n: 0,
+  };
+  const elites = await loadEliteMin();
+
   const ctx = {
     homeName: fx.teams.home.name,
     awayName: fx.teams.away.name,
     cornersOver95: pred.pCornersOver95,
     cardsOver45: Math.min(0.95, Math.max(0.05, (home.cardsAvg + away.cardsAvg) / 9)),
+    pillars: {
+      home: home10,
+      away: away10,
+      pred,
+      referee,
+      h2h: null, // pressionar o H2H na varredura custaria 1 chamada/jogo → evitado (P4 neutro)
+    } as PillarInput,
+    eliteMin: elites,
   };
   const narrative = readMatchNarrative(pred, ctx);
   const picks = buildAutoPicks(pred, ctx);
   if (!picks.length) return null;
+
+  // Filtro de Elite: a aposta (auto_tickets.picks) só emite palpite com
+  // score ≥ mínimo do mercado. Os demais continuam no scan (selos com score).
+  const bet = picks.filter((p) => p.elite !== false);
+  const emitted: AutoPick[] = bet.length ? bet : [];
+  const status = emitted.length ? "pending" : "skipped";
 
   const goalsSubType = picks.find((p) => p.market === "Gols Dinâmico")?.subType ?? null;
 
@@ -294,15 +344,29 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
     home: fx.teams.home.name,
     away: fx.teams.away.name,
     league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
+    // Contexto dos 5 Pilares (exibido no front-end com os selos).
+    pillarContext: {
+      referee: referee.name,
+      homeL10: home10.lastResults?.length ? `${l10Str(home10)}` : null,
+      awayL10: away10.lastResults?.length ? `${l10Str(away10)}` : null,
+      eliteMin: elites,
+    },
     // Todos os mercados do bilhete automático + placar exato mais provável (sempre presente
     // para os selos aparecerem automaticamente nos cards, mesmo quando não é publicado).
     picks: (() => {
-      const lite = picks.map((p) => ({ market: p.market, selection: p.selection, prob: p.prob }));
+      const lite = picks.map((p) => ({
+        market: p.market,
+        selection: p.selection,
+        prob: p.prob,
+        score: p.score ?? null,
+        elite: p.elite ?? null,
+        notes: p.pillarNotes ?? null,
+      }));
       const top = topExactScores(pred.matrix)[0];
       if (top) {
-        const entry = { market: "Placar Exato Seco", selection: `${top.i} - ${top.j}`, prob: top.p };
-        const idx = lite.findIndex((p) => p.market === "Placar Exato Seco");
-        if (idx >= 0) lite[idx] = entry;
+        const entry = { market: "Placar Exato Seco", selection: `${top.i} - ${top.j}`, prob: top.p, score: null, elite: null, notes: null };
+        const x = lite.findIndex((p) => p.market === "Placar Exato Seco");
+        if (x >= 0) lite[x] = entry;
         else lite.push(entry);
       }
       return lite;
@@ -318,7 +382,7 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
     away: fx.teams.away.name,
     home_logo: fx.teams.home.logo,
     away_logo: fx.teams.away.logo,
-    picks: picks as unknown as never,
+    picks: emitted as unknown as never,
     meta: {
       lambdaHome: pred.lambdaHome,
       lambdaAway: pred.lambdaAway,
@@ -329,6 +393,7 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
       headline: narrative.headline,
       flow: narrative.flow,
       goalsSubType,
+      eliteMin: elites,
       // cluster de proteção (top 3 placares) usado pelos mercados de placar exato
       scoreCluster: (() => {
         const multi = picks.find((p) => p.market === "Placar Múltiplo Exato");
@@ -338,8 +403,16 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
       })(),
     } as unknown as never,
 
-    status: "pending",
+    status,
   };
+}
+
+/** L10 legível (ex.: "O2.5 60% BTTS 40%") — sem import circular de five-pillars. */
+function l10Str(t: TeamPreviewStats): string {
+  const n = t.lastResults.length;
+  const over25 = t.lastResults.filter((r) => r.gf + r.ga > 2.5).length / n;
+  const btts = t.lastResults.filter((r) => r.gf > 0 && r.ga > 0).length / n;
+  return `L10 n=${n} O2.5 ${(over25 * 100) | 0}% BTTS ${(btts * 100) | 0}%`;
 }
 
 

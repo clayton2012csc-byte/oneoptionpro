@@ -19,6 +19,18 @@ export interface AutoPickLite {
   market: string;
   selection: string;
   prob: number;
+  /** nota 0..100 dos 5 Pilares */
+  score?: number;
+  /** Filtro de Elite (true = pode ser apostado) */
+  elite?: boolean;
+}
+
+/** Contexto dos 5 Pilares exibido junto aos selos (juiz, L10, mínimos). */
+export interface PillarContextLite {
+  referee?: string | null;
+  homeL10?: string | null;
+  awayL10?: string | null;
+  eliteMin?: Record<string, number>;
 }
 
 export interface ScanPrediction {
@@ -37,6 +49,8 @@ export interface ScanPrediction {
   kickoff?: string;
   /** palpite de placar exato seco + demais mercados do bilhete automático */
   picks?: AutoPickLite[];
+  /** contexto dos 5 Pilares (juiz, L10, mínimos de mercado) */
+  pillarContext?: PillarContextLite;
 }
 
 interface MarketFilterState {

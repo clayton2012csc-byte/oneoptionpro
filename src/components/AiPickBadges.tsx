@@ -41,23 +41,33 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
   const { market, predictions, persistedPredictions } = useMarketFilter();
   const isSelected = useSelectedFixture() === fixtureId;
 
-  const picks = useMemo(() => {
+  const view = useMemo(() => {
     if (market !== "none") return null;
     const saved = predictions.find((p) => p.fixtureId === fixtureId);
     const persisted = persistedPredictions.find((p) => p.fixtureId === fixtureId);
     const src = saved?.picks?.length ? saved : persisted;
     const list = src?.picks;
     if (!list || list.length === 0) return null;
-    return list;
+    return { picks: list, ctx: src?.pillarContext };
   }, [market, predictions, persistedPredictions, fixtureId]);
 
-  if (!picks) return null;
+  if (!view) return null;
+  const { picks, ctx } = view;
+
+  const ctxLine = (() => {
+    const parts: string[] = [];
+    if (ctx?.referee) parts.push(`Juiz: ${ctx.referee}`);
+    if (ctx?.homeL10) parts.push(ctx.homeL10);
+    if (ctx?.awayL10) parts.push(ctx.awayL10);
+    return parts.join(" · ");
+  })();
 
   return (
     <div className="absolute top-16 right-0 flex flex-col items-end gap-1.5 z-20 pointer-events-none">
       {picks.map((o, idx) => {
         const isExact = o.market === EXACT_MARKET;
         const highlight = isExact || isSelected;
+        const showScore = typeof o.score === "number";
         return (
           <div
             key={isExact ? EXACT_MARKET : `${o.market}-${idx}`}
@@ -73,6 +83,16 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
               </span>
               <span className={`text-[11px] font-black tabular mt-0.5 ${highlight ? "text-white" : "text-white"}`}>
                 {isExact ? `${o.selection} · ${pct(o.prob)}` : pct(o.prob)}
+                {showScore ? (
+                  <span
+                    title={`Confiança 5 Pilares · mín. ${o.score}%`}
+                    className={`ml-1.5 px-1 rounded text-[8px] font-black align-middle ${
+                      o.elite ? "bg-emerald-400 text-black" : "bg-white/20 text-white/80"
+                    }`}
+                  >
+                    ★{o.score}
+                  </span>
+                ) : null}
               </span>
             </div>
             <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${highlight ? "bg-white/20" : "bg-primary/20"}`}>
@@ -81,6 +101,11 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
           </div>
         );
       })}
+      {ctxLine ? (
+        <div className="max-w-[220px] text-right text-[8px] leading-tight text-white/70 bg-black/50 border border-white/10 rounded px-1.5 py-0.5">
+          {ctxLine}
+        </div>
+      ) : null}
     </div>
   );
 }

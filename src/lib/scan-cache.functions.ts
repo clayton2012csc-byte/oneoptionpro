@@ -12,9 +12,15 @@ const WINDOW_MS = 48 * 60 * 60 * 1000;
 /** Reduz os picks persistidos ao que o card exibe: placar exato (ou melhor placar múltiplo) + top 3 demais mercados. */
 function toBadgePicks(raw: unknown): AutoPickLite[] | undefined {
   if (!Array.isArray(raw)) return undefined;
-  const all = (raw as { market?: string; selection?: string; prob?: number }[])
+  const all = (raw as { market?: string; selection?: string; prob?: number; score?: number; elite?: boolean }[])
     .filter((p) => p && typeof p.market === "string" && typeof p.selection === "string" && typeof p.prob === "number")
-    .map((p) => ({ market: p.market!, selection: p.selection!, prob: p.prob! as number }));
+    .map((p) => ({
+      market: p.market!,
+      selection: p.selection!,
+      prob: p.prob! as number,
+      score: typeof p.score === "number" ? p.score : undefined,
+      elite: typeof p.elite === "boolean" ? p.elite : undefined,
+    }));
   if (!all.length) return undefined;
 
   let exact = all.find((p) => p.market === "Placar Exato Seco");
@@ -22,7 +28,7 @@ function toBadgePicks(raw: unknown): AutoPickLite[] | undefined {
   if (!exact) {
     multi = all.find((p) => p.market === "Placar Múltiplo Exato");
     const first = multi?.selection.split(",")[0]?.trim();
-    if (multi && first) exact = { market: "Placar Exato Seco", selection: first, prob: multi.prob };
+    if (multi && first) exact = { market: "Placar Exato Seco", selection: first, prob: multi.prob, score: multi.score, elite: multi.elite };
   }
 
   const others = all
