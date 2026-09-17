@@ -27,6 +27,8 @@ export interface AutoPick {
   prob: number;
   odd: number;
   rule: PickRule;
+  /** linha dinâmica escolhida (apenas "Gols Dinâmico"): Over 2.5, Over 1.5, Over 0.5 HT, Under 3.5 */
+  subType?: string;
   /** preenchido na conferência pós-jogo */
   status?: "green" | "red" | "void";
   /** justificativa textual do resultado real (auditoria) */
@@ -286,10 +288,26 @@ export function buildAutoPicks(pred: OwnPrediction, ctx: AutoTicketContext): Aut
     push("Resultado 1X2", label, p, { t: "1x2", pick: nar.result });
   }
 
-  // 2) Gols dinâmico — segue o cenário
+  // 2) Gols dinâmico — linha adaptativa (ver bloco de documentação acima)
   {
-    const b = sided(pred.pOver15, nar.goalsSide, "Mais de 1.5 gols", "Menos de 1.5 gols");
-    push("Gols Dinâmico", b.label, b.p, { t: "totals", line: 1.5, side: nar.goalsSide });
+    let choice = pickDynamicGoals(pred);
+    // coerência com o cenário: jogo travado não publica linha de Over alta
+    if (nar.goalsSide === "under" && choice.subType !== "Under 3.5") {
+      choice = {
+        subType: "Under 3.5",
+        label: "Menos de 3.5 gols",
+        prob: 1 - pred.pOver35,
+        rule: { t: "totals", line: 3.5, side: "under" },
+      };
+    }
+    picks.push({
+      market: "Gols Dinâmico",
+      selection: choice.label,
+      prob: choice.prob,
+      odd: odd(choice.prob),
+      rule: choice.rule,
+      subType: choice.subType,
+    });
   }
 
   // 3) Ambas marcam — coerente com gols e domínio
