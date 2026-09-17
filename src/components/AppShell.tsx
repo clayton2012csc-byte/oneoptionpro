@@ -269,20 +269,30 @@ function MobileNav() {
         <div className="flex gap-1 overflow-x-auto scrollbar-none px-2 py-1.5">
           {SECTIONS.map((s) => {
             const isActive = active === s.id;
-            return (
-              <button
-                key={s.id}
-                onClick={() => setActiveSection(s.id)}
-                className={`shrink-0 min-w-[68px] px-2 py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider border transition ${
-                  isActive
-                    ? "bg-primary/15 text-primary border-primary/30"
-                    : "text-muted-foreground border-transparent"
-                }`}
-              >
+            const cls = `shrink-0 min-w-[68px] px-2 py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider border transition ${
+              isActive
+                ? "bg-primary/15 text-primary border-primary/30"
+                : "text-muted-foreground border-transparent"
+            }`;
+            const content = (
+              <>
                 <span className="text-lg leading-none">{s.icon}</span>
                 <span className="truncate w-full text-center leading-tight">{s.label}</span>
+              </>
+            );
+            if (s.href) {
+              return (
+                <Link key={s.id} to={s.href} onClick={() => setActiveSection(s.id)} className={cls}>
+                  {content}
+                </Link>
+              );
+            }
+            return (
+              <button key={s.id} onClick={() => setActiveSection(s.id)} className={cls}>
+                {content}
               </button>
             );
+
           })}
           <button
             onClick={() => setLigas(true)}
