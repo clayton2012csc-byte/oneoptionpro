@@ -277,8 +277,11 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const picks = buildAutoPicks(pred, ctx);
   if (!picks.length) return null;
 
+  const goalsSubType = picks.find((p) => p.market === "Gols Dinâmico")?.subType ?? null;
+
   const scan = {
     fixtureId: fx.fixture.id,
+    goalsSubType,
     pUnder15: pred.pUnder15,
     pOver15: pred.pOver15,
     pUnder25: pred.pUnder25,
@@ -325,6 +328,7 @@ function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
       sampleAway: away.played,
       headline: narrative.headline,
       flow: narrative.flow,
+      goalsSubType,
       // cluster de proteção (top 3 placares) usado pelos mercados de placar exato
       scoreCluster: (() => {
         const multi = picks.find((p) => p.market === "Placar Múltiplo Exato");
