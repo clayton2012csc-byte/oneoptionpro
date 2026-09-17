@@ -186,6 +186,8 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
             scans.push({
               fixture_id: scan.fixtureId,
               market: "scan_snapshot",
+              // linha dinâmica de gols escolhida para esta partida
+              market_sub_type: scan.goalsSubType ?? null,
               probability: Math.round((scan.bestProb ?? 0) * 100),
               score: 0,
               features: scan as unknown as never,
@@ -220,7 +222,12 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     if (scans.length) {
       const ids = scans.map((s) => Number(s['fixture_id']));
       await db.from("ai_predictions").delete().eq("market", "scan_snapshot").in("fixture_id", ids);
-      await db.from("ai_predictions").insert(scans as never);
+      const { error: insErr } = await db.from("ai_predictions").insert(scans as never);
+      // banco ainda sem a coluna market_sub_type: repete sem o campo para não perder a varredura
+      if (insErr) {
+        const legacy = scans.map(({ market_sub_type: _omit, ...rest }) => rest);
+        await db.from("ai_predictions").insert(legacy as never);
+      }
     }
 
 
