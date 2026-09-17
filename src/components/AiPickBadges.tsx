@@ -17,11 +17,23 @@ const MARKET_LABEL: Record<string, string> = {
 
 const pct = (p: number) => pctFmt(p);
 
+/** Extrai a linha numérica do texto da seleção (ex.: "Mais de 9.5 escanteios" -> "9.5"). */
+function line(selection: string): string {
+  const m = selection.match(/(\d+(?:\.\d+)?)/);
+  return m ? m[1] : "";
+}
+
+const side = (selection: string) => (selection.includes("Menos") ? "MENOS" : "MAIS");
+
+/** Selo legível: sempre diz o lado (MAIS/MENOS), a linha e o que é. */
 function shortLabel(market: string, selection: string): string {
-  if (market === "Gols Dinâmico") return selection.includes("Menos") ? "U1.5" : "O1.5";
-  if (market === "Ambas Marcam") return selection.includes("Não") ? "BTTS NÃO" : "BTTS SIM";
-  if (market === "Escanteios") return selection.includes("Menos") ? "C9.5-" : "C9.5+";
-  if (market === "Cartões") return selection.includes("Menos") ? "CARDS-" : "CARDS+";
+  if (market === "Gols Dinâmico") {
+    const ht = selection.includes("1º tempo") ? " 1ºT" : "";
+    return `${side(selection)} ${line(selection)} GOLS${ht}`;
+  }
+  if (market === "Ambas Marcam") return selection.includes("Não") ? "AMBAS MARCAM: NÃO" : "AMBAS MARCAM: SIM";
+  if (market === "Escanteios") return `${side(selection)} ${line(selection)} ESCANTEIOS`;
+  if (market === "Cartões") return `${side(selection)} ${line(selection)} CARTÕES`;
   return MARKET_LABEL[market] ?? market;
 }
 
