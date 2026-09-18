@@ -71,7 +71,9 @@ export async function geminiChat(opts: {
         lastError = e as Error;
         if (!/\[(404|429|5\d\d)\]|Muitas requisições|abort|timeout|tempo limite/i.test(lastError.message))
           throw lastError;
-        if (/\[404\]/.test(lastError.message)) break; // modelo inexistente: tenta o próximo
+        // 404 (modelo inexistente) e 429 (cota do dia esgotada): vai direto ao próximo modelo.
+        if (/\[404\]|Muitas requisições/.test(lastError.message)) break;
+
         await sleep(1200 * (attempt + 1));
       }
     }
