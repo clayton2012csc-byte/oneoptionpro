@@ -17,6 +17,7 @@ import { ArtilheirosPanel } from "@/components/ArtilheirosPanel";
 import { EspeciaisBetanoPanel } from "@/components/EspeciaisBetanoPanel";
 import { LotecaPanel } from "@/components/LotecaPanel";
 import { AutoTicketsPanel } from "@/components/AutoTicketsPanel";
+import { MultiplasPanel } from "@/components/MultiplasPanel";
 import { DiagnosticoPanel } from "@/components/DiagnosticoPanel";
 import { saveScanPredictions, loadScanPredictions } from "@/lib/scan-cache.functions";
 import { LoadingList, EmptyState } from "@/components/StateViews";
@@ -41,6 +42,7 @@ const FOLDER_META: Record<SectionId, { icon: string; label: string }> = {
   alfha: { icon: "⚡", label: "Alfha (Velocidade)" },
   "especiais-betano": { icon: "⭐", label: "Especiais Betano OneOption" },
   auditoria: { icon: "🤖", label: "Bilhetes Automáticos (11 Mercados)" },
+  multiplas: { icon: "🎫", label: "Múltiplas Populares (3 níveis de odd)" },
   diagnostico: { icon: "🧠", label: "Assistente IA de Diagnóstico & Melhorias" },
 };
 
@@ -256,7 +258,7 @@ function TodosPage() {
     return () => window.clearInterval(timer);
   }, []);
 
-  const folder = (["bingao", "loteca", "radar", "beta", "alfha", "especiais-betano", "auditoria", "diagnostico"] as SectionId[]).includes(activeSection as SectionId)
+  const folder = (["bingao", "loteca", "radar", "beta", "alfha", "especiais-betano", "auditoria", "diagnostico", "multiplas"] as SectionId[]).includes(activeSection as SectionId)
     ? (activeSection as SectionId)
     : null;
 
@@ -520,10 +522,12 @@ function TodosPage() {
       {folder === "beta" && <BetaPanel />}
       {folder === "especiais-betano" && <EspeciaisBetanoPanel />}
       {folder === "auditoria" && <AutoTicketsPanel />}
+      {folder === "multiplas" && <MultiplasPanel />}
       {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
       {activeSection === "artilheiros" && <ArtilheirosPanel />}
       {!folder && activeSection !== "artilheiros" && (
         <>
+          <MultiplasPanel />
           <div role="tablist" aria-label="Filtrar jogos" className="flex gap-1.5 overflow-x-auto scrollbar-none px-3 pb-3">
             {FILTERS.map((f) => {
               const active = filter === f.id;
