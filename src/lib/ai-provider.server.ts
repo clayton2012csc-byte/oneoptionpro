@@ -155,8 +155,50 @@ export async function* geminiStream(opts: {
   thinkingBudget?: number;
 }): AsyncGenerator<string> {
   const key = requireKey();
-  const model = getGeminiModel();
-  const res = await fetch(
+  const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
+  let res: Response | null = null;
+  let lastStatus = 0;
+  let lastBody = "";
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await openStream(model, key, opts);
+      if (r.ok && r.body) {
+        res = r;
+        break;
+      }
+      lastStatus = r.status;
+      lastBody = await r.text().catch(() => "");
+      if (r.status !== 429 && r.status < 500) break;
+      await sleep(2000 * (attempt + 1));
+    }
+    if (res) break;
+  }
+
+  if (!res || !res.body) {
+    if (lastStatus === 429)
+      throw new Error(
+        "A chave do Gemini atingiu o limite de uso do momento. Aguarde cerca de 1 minuto e envie de novo.",
+      );
+    if (lastStatus === 401 || lastStatus === 403)
+      throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
+    throw new Error(`Falha na IA [${lastStatus}]: ${lastBody.slice(0, 200)}`);
+  }
+
+  yield* readStream(res);
+}
+
+function openStream(
+  model: string,
+  key: string,
+  opts: {
+    system: string[];
+    messages: ChatMessage[];
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingBudget?: number;
+  },
+) {
+  return fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
     {
       method: "POST",
@@ -176,18 +218,8 @@ export async function* geminiStream(opts: {
     },
   );
 
-  if (!res.ok || !res.body) {
-    const body = await res.text().catch(() => "");
-    if (res.status === 429)
-      throw new Error(
-        "Limite de uso da chave do Gemini atingido agora. Aguarde alguns instantes e envie de novo.",
-      );
-    if (res.status === 401 || res.status === 403)
-      throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
-    throw new Error(`Falha na IA [${res.status}]: ${body.slice(0, 200)}`);
-  }
-
-  const reader = res.body.getReader();
+async function* readStream(res: Response): AsyncGenerator<string> {
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   while (true) {
