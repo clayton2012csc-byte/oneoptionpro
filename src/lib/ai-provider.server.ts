@@ -175,8 +175,9 @@ export async function* geminiStream(opts: {
       }
       lastStatus = r.status;
       lastBody = await r.text().catch(() => "");
-      if (r.status !== 429 && r.status < 500) break;
-      await sleep(2000 * (attempt + 1));
+      // 429 = cota diária do modelo esgotada: troca de modelo em vez de insistir.
+      if (r.status < 500) break;
+      await sleep(1500 * (attempt + 1));
     }
     if (res) break;
   }
