@@ -35,8 +35,13 @@ function toParts(msg: ChatMessage) {
 }
 
 /** Chamada de texto ao Gemini. `system` são instruções de sistema (concatenadas). */
-/** Modelos alternativos usados quando o principal está sobrecarregado (503/404). */
-const FALLBACK_MODELS = ["gemini-flash-latest"];
+/**
+ * Modelos alternativos usados quando o principal falha (503/404) ou esgotou a
+ * cota gratuita do dia (429 — o plano grátis do gemini-3.6-flash dá só 20
+ * pedidos/dia). O lite tem cota diária bem maior e mantém o chat funcionando.
+ */
+const FALLBACK_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
+
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
