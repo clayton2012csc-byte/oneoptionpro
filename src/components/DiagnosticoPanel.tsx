@@ -295,12 +295,33 @@ export function DiagnosticoPanel() {
     setFiles([]);
     setSending(true);
     try {
-      const res = await chatFn({ data: { messages: next.slice(-12) } });
-      const reply: Msg = { role: "assistant", content: res.text };
-      setMessages([...next, reply]);
+      // Streaming: a resposta aparece enquanto a IA escreve (nada de tela parada).
+      const res = await fetch("/api/ai/assistant", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messages: next.slice(-12) }),
+      });
+      let full = "";
+      if (res.ok && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        setMessages([...next, { role: "assistant", content: "" }]);
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          full += decoder.decode(value, { stream: true });
+          setMessages([...next, { role: "assistant", content: full }]);
+        }
+      } else {
+        // Plano B: chamada tradicional (sem streaming).
+        const r = await chatFn({ data: { messages: next.slice(-12) } });
+        full = r.text;
+        setMessages([...next, { role: "assistant", content: full }]);
+      }
+      if (!full.trim()) throw new Error("A IA não respondeu. Tente enviar de novo.");
       await persist([
         { role: "user", content: userMsg.attachments?.length ? `${userMsg.content}\n\n[${userMsg.attachments.length} anexo(s) enviado(s)]` : userMsg.content },
-        reply,
+        { role: "assistant", content: full },
       ]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha ao consultar o assistente.");
@@ -309,6 +330,7 @@ export function DiagnosticoPanel() {
       setSending(false);
     }
   };
+
 
   const clearHistory = async () => {
     try {
