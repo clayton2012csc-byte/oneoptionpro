@@ -142,3 +142,75 @@ async function callGemini(
   if (!text) throw new Error("A IA não retornou uma resposta válida.");
   return text;
 }
+
+/**
+ * Versão em streaming (SSE) do Gemini: entrega o texto em pedaços conforme o
+ * modelo escreve. Evita a sensação de "travado" em respostas longas.
+ */
+export async function* geminiStream(opts: {
+  system: string[];
+  messages: ChatMessage[];
+  temperature?: number;
+  maxOutputTokens?: number;
+  thinkingBudget?: number;
+}): AsyncGenerator<string> {
+  const key = requireKey();
+  const model = getGeminiModel();
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+        contents: opts.messages.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: toParts(m),
+        })),
+        generationConfig: {
+          temperature: opts.temperature ?? 0.6,
+          maxOutputTokens: opts.maxOutputTokens ?? 2048,
+          thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? 0 },
+        },
+      }),
+    },
+  );
+
+  if (!res.ok || !res.body) {
+    const body = await res.text().catch(() => "");
+    if (res.status === 429)
+      throw new Error(
+        "Limite de uso da chave do Gemini atingido agora. Aguarde alguns instantes e envie de novo.",
+      );
+    if (res.status === 401 || res.status === 403)
+      throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
+    throw new Error(`Falha na IA [${res.status}]: ${body.slice(0, 200)}`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const json = JSON.parse(payload) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const chunk = (json.candidates?.[0]?.content?.parts ?? [])
+          .map((p) => p.text ?? "")
+          .join("");
+        if (chunk) yield chunk;
+      } catch {
+        /* pedaço incompleto: ignora */
+      }
+    }
+  }
+}
