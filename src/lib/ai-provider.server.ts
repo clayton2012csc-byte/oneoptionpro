@@ -35,8 +35,22 @@ function toParts(msg: ChatMessage) {
 }
 
 /** Chamada de texto ao Gemini. `system` são instruções de sistema (concatenadas). */
-/** Modelos alternativos usados quando o principal está sobrecarregado (503). */
-const FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
+/**
+ * Modelos alternativos usados quando o principal falha (503/404) ou esgotou a
+ * cota gratuita do dia (429 — o plano grátis do gemini-3.6-flash dá só 20
+ * pedidos/dia). O lite tem cota diária bem maior e mantém o chat funcionando.
+ */
+const FALLBACK_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
+
+
+/**
+ * Os modelos "lite" não aceitam thinkingConfig (400 INVALID_ARGUMENT);
+ * nos demais desligamos o raciocínio interno para a resposta sair rápido.
+ */
+function thinkingFor(model: string, budget?: number) {
+  if (/lite/i.test(model)) return {};
+  return { thinkingConfig: { thinkingBudget: budget ?? 0 } };
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -47,6 +61,13 @@ export async function geminiChat(opts: {
   maxOutputTokens?: number;
   /** Força a resposta como JSON (responseMimeType application/json). */
   json?: boolean;
+  /**
+   * Orçamento de raciocínio interno do Gemini 3. O padrão 0 desliga o "thinking",
+   * que sozinho fazia respostas simples levarem mais de 100s (o chat parecia travado).
+   */
+  thinkingBudget?: number;
+  /** Tempo máximo por tentativa (ms). */
+  timeoutMs?: number;
 }): Promise<string> {
   const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
   let lastError: Error | null = null;
@@ -57,7 +78,11 @@ export async function geminiChat(opts: {
         return await callGemini(model, opts);
       } catch (e) {
         lastError = e as Error;
-        if (!/\[(429|5\d\d)\]|Muitas requisições/.test(lastError.message)) throw lastError;
+        if (!/\[(404|429|5\d\d)\]|Muitas requisições|abort|timeout|tempo limite/i.test(lastError.message))
+          throw lastError;
+        // 404 (modelo inexistente) e 429 (cota do dia esgotada): vai direto ao próximo modelo.
+        if (/\[404\]|Muitas requisições/.test(lastError.message)) break;
+
         await sleep(1200 * (attempt + 1));
       }
     }
@@ -67,31 +92,53 @@ export async function geminiChat(opts: {
   );
 }
 
+
 async function callGemini(
   model: string,
-  opts: { system: string[]; messages: ChatMessage[]; temperature?: number; maxOutputTokens?: number; json?: boolean },
+  opts: {
+    system: string[];
+    messages: ChatMessage[];
+    temperature?: number;
+    maxOutputTokens?: number;
+    json?: boolean;
+    thinkingBudget?: number;
+    timeoutMs?: number;
+  },
 ): Promise<string> {
   const key = requireKey();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 90_000);
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
-        contents: opts.messages.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: toParts(m),
-        })),
-        generationConfig: {
-          temperature: opts.temperature ?? 0.6,
-          maxOutputTokens: opts.maxOutputTokens ?? 2048,
-          ...(opts.json ? { responseMimeType: "application/json" } : {}),
-        },
-      }),
-    },
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+          contents: opts.messages.map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: toParts(m),
+          })),
+          generationConfig: {
+            temperature: opts.temperature ?? 0.6,
+            maxOutputTokens: opts.maxOutputTokens ?? 2048,
+            ...thinkingFor(model, opts.thinkingBudget),
+            ...(opts.json ? { responseMimeType: "application/json" } : {}),
+          },
+        }),
+      },
+    );
+  } catch (e) {
+    const msg = (e as Error).name === "AbortError" ? "tempo limite excedido" : (e as Error).message;
+    throw new Error(`Falha na IA [504]: ${msg}`);
+  } finally {
+    clearTimeout(timer);
+  }
+
 
   if (!res.ok) {
     const body = await res.text();
@@ -110,4 +157,112 @@ async function callGemini(
     .trim();
   if (!text) throw new Error("A IA não retornou uma resposta válida.");
   return text;
+}
+
+/**
+ * Versão em streaming (SSE) do Gemini: entrega o texto em pedaços conforme o
+ * modelo escreve. Evita a sensação de "travado" em respostas longas.
+ */
+export async function* geminiStream(opts: {
+  system: string[];
+  messages: ChatMessage[];
+  temperature?: number;
+  maxOutputTokens?: number;
+  thinkingBudget?: number;
+}): AsyncGenerator<string> {
+  const key = requireKey();
+  const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
+  let res: Response | null = null;
+  let lastStatus = 0;
+  let lastBody = "";
+  for (const model of models) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const r = await openStream(model, key, opts);
+      if (r.ok && r.body) {
+        res = r;
+        break;
+      }
+      lastStatus = r.status;
+      lastBody = await r.text().catch(() => "");
+      // 429 = cota diária do modelo esgotada: troca de modelo em vez de insistir.
+      if (r.status < 500) break;
+      await sleep(1500 * (attempt + 1));
+    }
+    if (res) break;
+  }
+
+  if (!res || !res.body) {
+    if (lastStatus === 429)
+      throw new Error(
+        "A chave do Gemini atingiu o limite de uso do momento. Aguarde cerca de 1 minuto e envie de novo.",
+      );
+    if (lastStatus === 401 || lastStatus === 403)
+      throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
+    throw new Error(`Falha na IA [${lastStatus}]: ${lastBody.slice(0, 200)}`);
+  }
+
+  yield* readStream(res);
+}
+
+function openStream(
+  model: string,
+  key: string,
+  opts: {
+    system: string[];
+    messages: ChatMessage[];
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingBudget?: number;
+  },
+) {
+  return fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+        contents: opts.messages.map((m) => ({
+          role: m.role === "assistant" ? "model" : "user",
+          parts: toParts(m),
+        })),
+        generationConfig: {
+          temperature: opts.temperature ?? 0.6,
+          maxOutputTokens: opts.maxOutputTokens ?? 2048,
+          ...thinkingFor(model, opts.thinkingBudget),
+        },
+      }),
+    },
+  );
+}
+
+
+
+async function* readStream(res: Response): AsyncGenerator<string> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data:")) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") continue;
+      try {
+        const json = JSON.parse(payload) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const chunk = (json.candidates?.[0]?.content?.parts ?? [])
+          .map((p) => p.text ?? "")
+          .join("");
+        if (chunk) yield chunk;
+      } catch {
+        /* pedaço incompleto: ignora */
+      }
+    }
+  }
 }

@@ -22,22 +22,8 @@ export const getPlatformSnapshot = createServerFn({ method: "GET" }).handler(asy
   return await getPlatformSnapshotRaw();
 });
 
-const SYSTEM = `Você é o "Engenheiro de IA Residente" do OneOptionIA — um app TanStack Start + Supabase de análise de futebol.
-Contexto do produto: abas Dashboard Clayton, Bingão (Under 1.5, Prova Real, 4 jogos), Lotéca IA, Radar, Beta, Alfha, Artilheiros, Especiais Betano e Bilhetes Auto (robô de 11 mercados salvos na tabela auto_tickets, com conferência automática e ranking de assertividade).
-Você recebe, a cada mensagem, um SNAPSHOT REAL do banco e uma VARREDURA AO VIVO do site (rotas testadas com status e tempo, tabelas do Supabase acessíveis e contagem de linhas, integrações configuradas). Use SOMENTE esses dados ao falar de estado atual — nunca invente métricas. Você tem autonomia para apontar falhas, causas e correções, e pode responder perguntas livres sobre o site usando esses dados.
+import { ASSISTANT_SYSTEM as SYSTEM } from "./assistant-prompt";
 
-Responda SEMPRE em português do Brasil, neste formato exato em markdown:
-
-## Diagnóstico
-2 a 5 bullets objetivos citando os números do snapshot e a causa provável.
-
-## Verificação de integridade
-Bullets curtos: o que está saudável e o que está degradado (cobertura, assertividade por mercado, cache, rodadas, snapshots de varredura).
-
-## Prompt técnico pronto
-Um bloco de código \`\`\`text contendo um comando técnico, cirúrgico e autossuficiente (arquivos prováveis, comportamento esperado, regras de negócio, critérios de aceite). Nada de "verifique se" genérico — instrução executável.
-
-Seja direto, sem enrolação e sem repetir o snapshot cru.`;
 
 export const diagnosticChat = createServerFn({ method: "POST" })
   .inputValidator(
@@ -81,7 +67,10 @@ export const diagnosticChat = createServerFn({ method: "POST" })
         content: m.content,
         attachments: m.attachments,
       })),
-      maxOutputTokens: 4096,
+      maxOutputTokens: 1400,
+      thinkingBudget: 0,
+      timeoutMs: 100_000,
+
     });
     return { text, snapshot, scan };
   });
@@ -160,7 +149,10 @@ export const introMessage = createServerFn({ method: "GET" }).handler(async () =
           "NÃO gere bloco de prompt nesta mensagem.",
       },
     ],
-    maxOutputTokens: 4096,
+    maxOutputTokens: 1200,
+    thinkingBudget: 0,
+    timeoutMs: 90_000,
+
   });
   return { text, snapshot, scan };
 

@@ -20,6 +20,7 @@ import { Route as TriagemRouteImport } from './routes/triagem'
 import { Route as JogoFixtureIdRouteImport } from './routes/jogo.$fixtureId'
 import { Route as LigaLeagueIdRouteImport } from './routes/liga.$leagueId'
 import { Route as TimeTeamIdRouteImport } from './routes/time.$teamId'
+import { Route as ApiAiAssistantRouteImport } from './routes/api/ai/assistant'
 import { Route as ApiPublicExportRouteImport } from './routes/api/public/export'
 import { Route as ApiPublicAiAutoTicketsRouteImport } from './routes/api/public/ai/auto-tickets'
 import { Route as ApiPublicAiComplexMarketsRouteImport } from './routes/api/public/ai/complex-markets'
@@ -82,6 +83,11 @@ const TimeTeamIdRoute = TimeTeamIdRouteImport.update({
   path: '/time/$teamId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAiAssistantRoute = ApiAiAssistantRouteImport.update({
+  id: '/api/ai/assistant',
+  path: '/api/ai/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicExportRoute = ApiPublicExportRouteImport.update({
   id: '/api/public/export',
   path: '/api/public/export',
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
+  '/api/ai/assistant': typeof ApiAiAssistantRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
   '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
+  '/api/ai/assistant': typeof ApiAiAssistantRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
   '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/jogo/$fixtureId': typeof JogoFixtureIdRoute
   '/liga/$leagueId': typeof LigaLeagueIdRoute
   '/time/$teamId': typeof TimeTeamIdRoute
+  '/api/ai/assistant': typeof ApiAiAssistantRoute
   '/api/public/export': typeof ApiPublicExportRoute
   '/api/public/ai/auto-tickets': typeof ApiPublicAiAutoTicketsRoute
   '/api/public/ai/complex-markets': typeof ApiPublicAiComplexMarketsRoute
@@ -186,6 +195,7 @@ export interface FileRouteTypes {
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
+    | '/api/ai/assistant'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
     | '/api/public/ai/complex-markets'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
+    | '/api/ai/assistant'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
     | '/api/public/ai/complex-markets'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/jogo/$fixtureId'
     | '/liga/$leagueId'
     | '/time/$teamId'
+    | '/api/ai/assistant'
     | '/api/public/export'
     | '/api/public/ai/auto-tickets'
     | '/api/public/ai/complex-markets'
@@ -244,6 +256,7 @@ export interface RootRouteChildren {
   JogoFixtureIdRoute: typeof JogoFixtureIdRoute
   LigaLeagueIdRoute: typeof LigaLeagueIdRoute
   TimeTeamIdRoute: typeof TimeTeamIdRoute
+  ApiAiAssistantRoute: typeof ApiAiAssistantRoute
   ApiPublicExportRoute: typeof ApiPublicExportRoute
   ApiPublicAiAutoTicketsRoute: typeof ApiPublicAiAutoTicketsRoute
   ApiPublicAiComplexMarketsRoute: typeof ApiPublicAiComplexMarketsRoute
@@ -331,6 +344,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TimeTeamIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ai/assistant': {
+      id: '/api/ai/assistant'
+      path: '/api/ai/assistant'
+      fullPath: '/api/ai/assistant'
+      preLoaderRoute: typeof ApiAiAssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/export': {
       id: '/api/public/export'
       path: '/api/public/export'
@@ -388,6 +408,7 @@ const rootRouteChildren: RootRouteChildren = {
   JogoFixtureIdRoute: JogoFixtureIdRoute,
   LigaLeagueIdRoute: LigaLeagueIdRoute,
   TimeTeamIdRoute: TimeTeamIdRoute,
+  ApiAiAssistantRoute: ApiAiAssistantRoute,
   ApiPublicExportRoute: ApiPublicExportRoute,
   ApiPublicAiAutoTicketsRoute: ApiPublicAiAutoTicketsRoute,
   ApiPublicAiComplexMarketsRoute: ApiPublicAiComplexMarketsRoute,
