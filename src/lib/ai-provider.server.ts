@@ -43,6 +43,15 @@ function toParts(msg: ChatMessage) {
 const FALLBACK_MODELS = ["gemini-flash-latest", "gemini-flash-lite-latest"];
 
 
+/**
+ * Os modelos "lite" não aceitam thinkingConfig (400 INVALID_ARGUMENT);
+ * nos demais desligamos o raciocínio interno para a resposta sair rápido.
+ */
+function thinkingFor(model: string, budget?: number) {
+  if (/lite/i.test(model)) return {};
+  return { thinkingConfig: { thinkingBudget: budget ?? 0 } };
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function geminiChat(opts: {
@@ -117,7 +126,7 @@ async function callGemini(
           generationConfig: {
             temperature: opts.temperature ?? 0.6,
             maxOutputTokens: opts.maxOutputTokens ?? 2048,
-            thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? 0 },
+            ...thinkingFor(model, opts.thinkingBudget),
             ...(opts.json ? { responseMimeType: "application/json" } : {}),
           },
         }),
@@ -220,7 +229,7 @@ function openStream(
         generationConfig: {
           temperature: opts.temperature ?? 0.6,
           maxOutputTokens: opts.maxOutputTokens ?? 2048,
-          thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? 0 },
+          ...thinkingFor(model, opts.thinkingBudget),
         },
       }),
     },
