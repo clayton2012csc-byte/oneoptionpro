@@ -4,6 +4,7 @@ import { setActiveSection, useActiveSection } from "@/lib/active-section";
 export const SECTIONS: { id: string; label: string; icon: string; lucide: any; href?: string }[] = [
   { id: "dashboard-clayton", label: "Dashboard Clayton", icon: "💎", lucide: LayoutDashboard },
   { id: "triagem", label: "Triagem", icon: "🔎", lucide: Filter, href: "/triagem" },
+  { id: "multiplas", label: "Múltiplas Populares", icon: "🎫", lucide: Trophy },
   { id: "bingao", label: "Bingão", icon: "🎯", lucide: Target },
 
   { id: "loteca", label: "Lotéca IA", icon: "🎟️", lucide: ClipboardList },

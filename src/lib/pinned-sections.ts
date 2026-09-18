@@ -1,18 +1,18 @@
 import { useSyncExternalStore } from "react";
 
-export type SectionId = "bingao" | "loteca" | "radar" | "beta" | "alfha" | "especiais-betano" | "auditoria" | "diagnostico";
+export type SectionId = "bingao" | "loteca" | "radar" | "beta" | "alfha" | "especiais-betano" | "auditoria" | "diagnostico" | "multiplas";
 
 const KEY = "tdb:pinned-sections";
 type Store = Record<SectionId, number[]>;
 
 function empty(): Store {
-  return { bingao: [], loteca: [], radar: [], beta: [], alfha: [], "especiais-betano": [], auditoria: [], diagnostico: [] };
+  return { bingao: [], loteca: [], radar: [], beta: [], alfha: [], "especiais-betano": [], auditoria: [], diagnostico: [], multiplas: [] };
 }
 
 function normalize(raw: unknown): Store {
   const base = empty();
   if (!raw || typeof raw !== "object") return base;
-  for (const k of ["bingao", "loteca", "radar", "beta", "alfha", "especiais-betano", "auditoria", "diagnostico"] as SectionId[]) {
+  for (const k of ["bingao", "loteca", "radar", "beta", "alfha", "especiais-betano", "auditoria", "diagnostico", "multiplas"] as SectionId[]) {
     const v = (raw as Record<string, unknown>)[k];
     if (Array.isArray(v)) base[k] = v.filter((n) => typeof n === "number");
     else if (typeof v === "number") base[k] = [v];
