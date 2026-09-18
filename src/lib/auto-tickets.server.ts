@@ -11,7 +11,15 @@
 import type { ApiFixture, TeamPreviewStats } from "./api-football.functions";
 import { upcomingFixtures, recentFinishedIndex } from "./api-football-raw.server";
 import { computeOwnPrediction } from "./own-prediction";
-import { buildAutoPicks, gradeAutoPicks, readMatchNarrative, resultReason, topExactScores, type AutoPick, type MatchResult } from "./auto-ticket";
+import {
+  buildAutoPicks,
+  gradeAutoPicks,
+  readMatchNarrative,
+  resultReason,
+  topExactScores,
+  type AutoPick,
+  type MatchResult,
+} from "./auto-ticket";
 import { mergeEliteMin, type PillarInput, type PillarReferee } from "./five-pillars";
 
 const LOCK_KEY = "auto_tickets_lock";
@@ -39,7 +47,8 @@ async function loadEliteMin(): Promise<Record<string, number>> {
       .order("version", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const w = (data?.weights as unknown as { minimum_scores?: Record<string, number> } | null) ?? null;
+    const w =
+      (data?.weights as unknown as { minimum_scores?: Record<string, number> } | null) ?? null;
     db = w?.minimum_scores ?? null;
   } catch (e) {
     console.warn("[auto-tickets] loadEliteMin failed", (e as Error).message);
@@ -48,36 +57,67 @@ async function loadEliteMin(): Promise<Record<string, number>> {
   return eliteMinCache.min;
 }
 
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Monta as médias de um time a partir do índice de jogos encerrados recentes. */
-function teamStatsFromIndex(teamId: number, idx: Map<number, ApiFixture[]>, last = 5): TeamPreviewStats {
+function teamStatsFromIndex(
+  teamId: number,
+  idx: Map<number, ApiFixture[]>,
+  last = 5,
+): TeamPreviewStats {
   const games = (idx.get(teamId) ?? []).slice(0, last);
   const empty: TeamPreviewStats = {
-    played: 0, goalsFor: 0, goalsAgainst: 0, goalsForAvg: 0, goalsAgainstAvg: 0,
-    cornersFor: 0, cornersAgainst: 0, cornersForAvg: 0, cornersAgainstAvg: 0, cornersTotalAvg: 0,
-    cornersSample: 0, cornersEstimated: true,
-    shotsOnGoalAvg: 0, cardsAvg: CARDS_AVG, bttsPct: 0, over25Pct: 0,
-    cleanSheetPct: 0, failedToScorePct: 0, form: "", lastResults: [],
+    played: 0,
+    goalsFor: 0,
+    goalsAgainst: 0,
+    goalsForAvg: 0,
+    goalsAgainstAvg: 0,
+    cornersFor: 0,
+    cornersAgainst: 0,
+    cornersForAvg: 0,
+    cornersAgainstAvg: 0,
+    cornersTotalAvg: 0,
+    cornersSample: 0,
+    cornersEstimated: true,
+    shotsOnGoalAvg: 0,
+    cardsAvg: CARDS_AVG,
+    bttsPct: 0,
+    over25Pct: 0,
+    cleanSheetPct: 0,
+    failedToScorePct: 0,
+    form: "",
+    lastResults: [],
   };
   if (!games.length) return empty;
 
-  let gf = 0, ga = 0, btts = 0, over25 = 0, cs = 0, fs = 0;
+  let gf = 0,
+    ga = 0,
+    btts = 0,
+    over25 = 0,
+    cs = 0,
+    fs = 0;
   const form: string[] = [];
   const lastResults: TeamPreviewStats["lastResults"] = [];
   for (const f of games) {
     const isHome = f.teams.home.id === teamId;
     const goalsFor = (isHome ? f.goals.home : f.goals.away) ?? 0;
     const goalsAg = (isHome ? f.goals.away : f.goals.home) ?? 0;
-    gf += goalsFor; ga += goalsAg;
+    gf += goalsFor;
+    ga += goalsAg;
     if (goalsFor > 0 && goalsAg > 0) btts++;
     if (goalsFor + goalsAg > 2.5) over25++;
     if (goalsAg === 0) cs++;
     if (goalsFor === 0) fs++;
     const result = goalsFor > goalsAg ? "V" : goalsFor < goalsAg ? "D" : "E";
     form.push(result);
-    lastResults.push({ date: f.fixture.date, opp: isHome ? f.teams.away.name : f.teams.home.name, gf: goalsFor, ga: goalsAg, home: isHome, result });
+    lastResults.push({
+      date: f.fixture.date,
+      opp: isHome ? f.teams.away.name : f.teams.home.name,
+      gf: goalsFor,
+      ga: goalsAg,
+      home: isHome,
+      result,
+    });
   }
   const n = games.length;
   return {
@@ -86,9 +126,13 @@ function teamStatsFromIndex(teamId: number, idx: Map<number, ApiFixture[]>, last
     goalsAgainst: ga,
     goalsForAvg: gf / n,
     goalsAgainstAvg: ga / n,
-    cornersFor: 0, cornersAgainst: 0,
-    cornersForAvg: CORNERS_AVG, cornersAgainstAvg: CORNERS_AVG, cornersTotalAvg: CORNERS_AVG * 2,
-    cornersSample: 0, cornersEstimated: true,
+    cornersFor: 0,
+    cornersAgainst: 0,
+    cornersForAvg: CORNERS_AVG,
+    cornersAgainstAvg: CORNERS_AVG,
+    cornersTotalAvg: CORNERS_AVG * 2,
+    cornersSample: 0,
+    cornersEstimated: true,
     shotsOnGoalAvg: 0,
     cardsAvg: CARDS_AVG,
     bttsPct: btts / n,
@@ -99,7 +143,6 @@ function teamStatsFromIndex(teamId: number, idx: Map<number, ApiFixture[]>, last
     lastResults,
   };
 }
-
 
 export interface AutoTicketsProgress {
   ok: boolean;
@@ -119,7 +162,11 @@ async function admin() {
 async function acquireLock(): Promise<boolean> {
   const db = await admin();
   const now = new Date();
-  const { data } = await db.from("api_cache").select("expires_at").eq("key", LOCK_KEY).maybeSingle();
+  const { data } = await db
+    .from("api_cache")
+    .select("expires_at")
+    .eq("key", LOCK_KEY)
+    .maybeSingle();
   if (data?.expires_at && new Date(data.expires_at).getTime() > now.getTime()) return false;
   await db.from("api_cache").upsert({
     key: LOCK_KEY,
@@ -131,7 +178,10 @@ async function acquireLock(): Promise<boolean> {
 
 async function releaseLock() {
   const db = await admin();
-  await db.from("api_cache").update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq("key", LOCK_KEY);
+  await db
+    .from("api_cache")
+    .update({ expires_at: new Date(Date.now() - 1000).toISOString() })
+    .eq("key", LOCK_KEY);
 }
 
 /**
@@ -184,7 +234,6 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
 
     const upcoming = await upcomingFixtures(HORIZON_HOURS);
 
-
     const ids = upcoming.map((f) => f.fixture.id);
     const known = new Set<number>();
     for (let i = 0; i < ids.length; i += 200) {
@@ -205,11 +254,11 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
         try {
           const built = await buildRow(fx, idx);
           if (built) {
-            const { scan, triagem, ...row } = built;
+            const { scan, triagem, triagemMeta, ...row } = built;
             await db.from("auto_tickets").upsert(row, { onConflict: "fixture_id" });
-            if (triagem.length) {
+            if (triagem.length && triagemMeta) {
               const { saveTriagem } = await import("./triagem.server");
-              await saveTriagem(triagem).catch(() => 0);
+              await saveTriagem(triagem, triagemMeta).catch(() => 0);
             }
             scans.push({
               fixture_id: scan.fixtureId,
@@ -220,7 +269,6 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
               score: 0,
               features: scan as unknown as never,
             });
-
           } else {
             // Sem amostra suficiente: registra como "skipped" para não travar o progresso.
             await db.from("auto_tickets").upsert(
@@ -249,7 +297,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
 
     // Persiste os selos da varredura (leitura instantânea ao abrir o site).
     if (scans.length) {
-      const ids = scans.map((s) => Number(s['fixture_id']));
+      const ids = scans.map((s) => Number(s["fixture_id"]));
       await db.from("ai_predictions").delete().eq("market", "scan_snapshot").in("fixture_id", ids);
       const { error: insErr } = await db.from("ai_predictions").insert(scans as never);
       // banco ainda sem a coluna market_sub_type: repete sem o campo para não perder a varredura
@@ -258,9 +306,6 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
         await db.from("ai_predictions").insert(legacy as never);
       }
     }
-
-
-
 
     // Registra a rodada da varredura (histórico/diagnóstico).
     await db.from("ai_rounds").insert({
@@ -334,9 +379,8 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
 
   const goalsSubType = picks.find((p) => p.market === "Gols Dinâmico")?.subType ?? null;
 
-  // Triagem — filtro de elite funilizado (9 mercados isolados, nota >= 75).
-  const { routeToTriagem } = await import("./triagem-engine");
-  const triagem = routeToTriagem(pred, {
+  // Triagem — avalia TODOS os 9 mercados (publica nota >= 75; reprovados são auditados).
+  const triagemMeta = {
     fixtureId: fx.fixture.id,
     matchName: `${fx.teams.home.name} x ${fx.teams.away.name}`,
     league: `${fx.league.country ?? ""} · ${fx.league.name}`.replace(/^ · /, ""),
@@ -345,9 +389,9 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
     awayGoalsForAvgL10: away10.goalsForAvg,
     homeCleanSheetPct: home10.cleanSheetPct,
     awayCleanSheetPct: away10.cleanSheetPct,
-  });
-
-
+  };
+  const { evaluateTriagem } = await import("./triagem-engine");
+  const triagem = evaluateTriagem(pred, triagemMeta);
 
   const scan = {
     fixtureId: fx.fixture.id,
@@ -384,7 +428,14 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
       }));
       const top = topExactScores(pred.matrix)[0];
       if (top) {
-        const entry = { market: "Placar Exato Seco", selection: `${top.i} - ${top.j}`, prob: top.p, score: null, elite: null, notes: null };
+        const entry = {
+          market: "Placar Exato Seco",
+          selection: `${top.i} - ${top.j}`,
+          prob: top.p,
+          score: null,
+          elite: null,
+          notes: null,
+        };
         const x = lite.findIndex((p) => p.market === "Placar Exato Seco");
         if (x >= 0) lite[x] = entry;
         else lite.push(entry);
@@ -396,6 +447,7 @@ async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   return {
     scan,
     triagem,
+    triagemMeta,
 
     fixture_id: fx.fixture.id,
     kickoff: fx.fixture.date,
@@ -436,7 +488,6 @@ function l10Str(t: TeamPreviewStats): string {
   const btts = t.lastResults.filter((r) => r.gf > 0 && r.ga > 0).length / n;
   return `L10 n=${n} O2.5 ${(over25 * 100) | 0}% BTTS ${(btts * 100) | 0}%`;
 }
-
 
 /** Quantos bilhetes pendentes já passaram do apito final (fila de conferência). */
 export async function overduePendingCount(): Promise<number> {
@@ -492,7 +543,9 @@ export async function gradePending(limit = 400): Promise<number> {
     // e dentro de um orçamento por execução (protege a cota da API).
     const rowPicks = (row.picks ?? []) as unknown as AutoPick[];
     const needsScout = rowPicks.some(
-      (p) => p?.rule?.t === "corners" || p?.rule?.t === "cards" ||
+      (p) =>
+        p?.rule?.t === "corners" ||
+        p?.rule?.t === "cards" ||
         (p?.rule?.t === "combo" && p.rule.legs.some((l) => l.t === "corners" || l.t === "cards")),
     );
     let scout: { corners: number | null; cards: number | null } = { corners: null, cards: null };
@@ -634,7 +687,6 @@ export async function gradePending(limit = 400): Promise<number> {
   return graded;
 }
 
-
 /** Progresso sem gastar chamadas da API-Football. */
 export async function snapshotProgress(): Promise<AutoTicketsProgress> {
   const db = await admin();
@@ -691,7 +743,9 @@ function verdictOf(g: number, r: number, acc: number): MarketRankingRow["verdict
 }
 
 /** Recalcula o ranking a partir de todos os bilhetes já conferidos. */
-export async function computeMarketRanking(markets: readonly string[] = []): Promise<MarketRankingRow[]> {
+export async function computeMarketRanking(
+  markets: readonly string[] = [],
+): Promise<MarketRankingRow[]> {
   const db = await admin();
   const recentCut = Date.now() - RECENT_DAYS * 24 * 60 * 60 * 1000;
   const agg = new Map<string, { g: number; r: number; v: number; rg: number; rr: number }>();
@@ -711,7 +765,10 @@ export async function computeMarketRanking(markets: readonly string[] = []): Pro
       .order("graded_at", { ascending: false })
       .range(i * page, i * page + page - 1);
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as unknown as { picks: { market: string; status?: string }[]; graded_at: string | null }[];
+    const rows = (data ?? []) as unknown as {
+      picks: { market: string; status?: string }[];
+      graded_at: string | null;
+    }[];
     for (const row of rows) {
       const isRecent = row.graded_at ? new Date(row.graded_at).getTime() >= recentCut : false;
       for (const p of row.picks ?? []) {
@@ -747,7 +804,8 @@ export async function computeMarketRanking(markets: readonly string[] = []): Pro
   });
 
   out.sort((a, b) => {
-    const an = a.greens + a.reds, bn = b.greens + b.reds;
+    const an = a.greens + a.reds,
+      bn = b.greens + b.reds;
     if (!an && bn) return 1;
     if (an && !bn) return -1;
     return b.accuracy - a.accuracy || bn - an;
@@ -756,7 +814,9 @@ export async function computeMarketRanking(markets: readonly string[] = []): Pro
 }
 
 /** Guarda o retrato do ranking (histórico automático de desempenho). */
-export async function persistMarketRanking(markets: readonly string[] = []): Promise<MarketRankingRow[]> {
+export async function persistMarketRanking(
+  markets: readonly string[] = [],
+): Promise<MarketRankingRow[]> {
   const rows = await computeMarketRanking(markets);
   const db = await admin();
   await db.from("api_cache").upsert({
@@ -768,7 +828,10 @@ export async function persistMarketRanking(markets: readonly string[] = []): Pro
 }
 
 /** Último retrato salvo (sem recalcular) — usado como leitura rápida. */
-export async function readMarketRankingSnapshot(): Promise<{ at: string | null; rows: MarketRankingRow[] }> {
+export async function readMarketRankingSnapshot(): Promise<{
+  at: string | null;
+  rows: MarketRankingRow[];
+}> {
   const db = await admin();
   const { data } = await db.from("api_cache").select("data").eq("key", RANKING_KEY).maybeSingle();
   const payload = (data?.data ?? null) as { at?: string; rows?: MarketRankingRow[] } | null;

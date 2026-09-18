@@ -5,8 +5,9 @@
 import {
   TRIAGEM_MARKETS,
   gradeTriagem,
-  type TriagemCandidate,
+  type TriagemEval,
   type TriagemMarket,
+  type TriagemMatchData,
 } from "./triagem-engine";
 
 /** A tabela é nova e ainda não está nos tipos gerados — acesso solto e seguro. */
@@ -35,25 +36,47 @@ export interface TriagemRow {
   predicted_value: string;
   score_confidence: number;
   status: "pending" | "green" | "red" | "void";
+  passed: boolean;
+  probability: number;
+  ceiling: number;
+  reason: string[];
   result_score: string | null;
   created_at: string;
   graded_at: string | null;
 }
 
-/** Grava (ou atualiza) os registros de triagem de um jogo. */
-export async function saveTriagem(candidates: TriagemCandidate[]): Promise<number> {
-  if (!candidates.length) return 0;
+/**
+ * Grava a avaliação COMPLETA do jogo na Triagem (9 mercados).
+ * Mercados que passaram ficam `pending` (entram no painel e na conferência);
+ * os reprovados ficam `void` (registrados para a Certificação, fora do painel).
+ */
+export async function saveTriagem(evals: TriagemEval[], meta: TriagemMatchData): Promise<number> {
+  if (!evals.length) return 0;
   const t = await table();
-  const { error } = await t.upsert(candidates, { onConflict: "fixture_id,market_type" });
+  const rows = evals.map((e) => ({
+    fixture_id: meta.fixtureId,
+    match_name: meta.matchName,
+    league: meta.league ?? null,
+    kickoff: meta.kickoff ?? null,
+    market_type: e.market,
+    predicted_value: e.predicted_value,
+    score_confidence: e.score,
+    passed: e.passed,
+    probability: e.probability,
+    ceiling: e.ceiling,
+    reason: e.reasons,
+    status: e.passed ? "pending" : "void",
+  }));
+  const { error } = await t.upsert(rows, { onConflict: "fixture_id,market_type" });
   if (error) {
     if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem.sql");
+      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
       return 0;
     }
     console.warn("[triagem] falha ao gravar", error.message);
     return 0;
   }
-  return candidates.length;
+  return rows.length;
 }
 
 /** Confere todos os mercados de um jogo encerrado (independente entre si). */
@@ -74,7 +97,9 @@ export async function gradeTriagemFixture(
   let done = 0;
   for (const row of data as { id: string; market_type: TriagemMarket; predicted_value: string }[]) {
     const status = gradeTriagem(row.market_type, row.predicted_value, goalsHome, goalsAway);
-    const upd = await (await table())
+    const upd = await (
+      await table()
+    )
       .update({ status, result_score: resultScore, graded_at: now })
       .eq("id", row.id);
     if (!upd.error) done++;
@@ -109,6 +134,7 @@ export async function triagemBoard(): Promise<{ markets: TriagemMarketStat[]; to
     .select(
       "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, status, result_score, created_at, graded_at",
     )
+    .eq("passed", true)
     .gte("created_at", since)
     .order("kickoff", { ascending: true })
     .limit(4000);
@@ -135,4 +161,233 @@ export async function triagemBoard(): Promise<{ markets: TriagemMarketStat[]; to
     m.accuracy = n ? m.greens / n : 0;
   }
   return { markets: base, total: rows.length };
+}
+
+// ───────────────────────── Certificação ─────────────────────────
+
+export interface TriagemCertFixture {
+  fixture_id: number;
+  match_name: string;
+  league: string | null;
+  kickoff: string | null;
+  /** 9 avaliações — passou/falhou + motivo. */
+  evals: TriagemRow[];
+  published: number;
+}
+
+export interface TriagemCertification {
+  total: number;
+  fixtures: TriagemCertFixture[];
+  /** taxa de jogos que entraram em ≥ 1 mercado */
+  routingRate: number;
+}
+
+const SELECT_ALL =
+  "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, probability, ceiling, reason, passed, status, result_score, created_at, graded_at";
+
+/**
+ * Certificação: cada jogo analisado com os 9 mercados avaliados —
+ * nota, passou/falhou e motivo. Permitir ver, jogo a jogo, se o
+ * roteamento para o(s) mercado(s) certo(s) confere.
+ */
+export async function triagemCertificacao(days = 21, limit = 3000): Promise<TriagemCertification> {
+  const t = await table();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await t
+    .select(SELECT_ALL)
+    .gte("created_at", since)
+    .order("kickoff", { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    if (missingTable(error)) {
+      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+      return { total: 0, fixtures: [], routingRate: 0 };
+    }
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as TriagemRow[];
+  const byFixture = new Map<number, TriagemCertFixture>();
+  for (const r of rows) {
+    let f = byFixture.get(r.fixture_id);
+    if (!f) {
+      f = {
+        fixture_id: r.fixture_id,
+        match_name: r.match_name,
+        league: r.league,
+        kickoff: r.kickoff,
+        evals: [],
+        published: 0,
+      };
+      byFixture.set(r.fixture_id, f);
+    }
+    f.evals.push(r);
+    if (r.passed) f.published++;
+  }
+  const fixtures = [...byFixture.values()].sort((a, b) =>
+    (b.kickoff ?? "").localeCompare(a.kickoff ?? ""),
+  );
+  const analyzed = fixtures.length;
+  const entered = fixtures.filter((f) => f.published > 0).length;
+  return {
+    total: analyzed,
+    fixtures,
+    routingRate: analyzed ? entered / analyzed : 0,
+  };
+}
+
+// ───────────────────────── Evolução diária ─────────────────────────
+
+export interface TriagemEvolucaoDay {
+  date: string; // YYYY-MM-DD
+  analyzed: number; // fixtures distintas
+  published: number; // mercados publicados (passed)
+  greens: number;
+  reds: number;
+  pending: number;
+  accuracy: number; // greens / (greens+reds)
+}
+
+export interface TriagemEvolucaoMarket {
+  market: TriagemMarket;
+  volume: number; // publicados no período
+  greens: number;
+  reds: number;
+  accuracy: number;
+  trend: TriagemEvolucaoDay[]; // últimos 14 dias com volume>0 ou acc
+}
+
+export interface TriagemEvolucao {
+  days: TriagemEvolucaoDay[];
+  markets: TriagemEvolucaoMarket[];
+  totalAnalyzed: number;
+  totalPublished: number;
+  overallAccuracy: number;
+}
+
+/** Relatório diário: evolução da Triagem por dia + por mercado. */
+export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
+  const t = await table();
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await t
+    .select("id, fixture_id, market_type, passed, status, created_at")
+    .gte("created_at", since)
+    .limit(10000);
+
+  if (error) {
+    if (missingTable(error)) {
+      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+      return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
+    }
+    throw new Error(error.message);
+  }
+
+  const rows = (data ?? []) as Array<{
+    fixture_id: number;
+    market_type: TriagemMarket;
+    passed: boolean;
+    status: string;
+    created_at: string;
+  }>;
+
+  const byDay = new Map<string, TriagemEvolucaoDay>();
+  const fixturesPerDay = new Map<string, Set<number>>();
+  const marketBuckets = new Map<TriagemMarket, { g: number; r: number; v: number }>();
+  const marketByDay = new Map<string, Map<TriagemMarket, { g: number; r: number; v: number }>>();
+  let totalPublished = 0;
+  let totalGreens = 0;
+  let totalReds = 0;
+
+  for (const r of rows) {
+    const date = (r.created_at ?? "").slice(0, 10);
+    if (!date) continue;
+
+    let day = byDay.get(date);
+    if (!day) {
+      day = { date, analyzed: 0, published: 0, greens: 0, reds: 0, pending: 0, accuracy: 0 };
+      byDay.set(date, day);
+    }
+    let set = fixturesPerDay.get(date);
+    if (!set) {
+      set = new Set();
+      fixturesPerDay.set(date, set);
+    }
+    set.add(r.fixture_id);
+
+    if (r.passed) {
+      day.published++;
+      totalPublished++;
+      if (r.status === "green") {
+        day.greens++;
+        totalGreens++;
+      } else if (r.status === "red") {
+        day.reds++;
+        totalReds++;
+      } else if (r.status === "pending") {
+        day.pending++;
+      }
+      const mb = marketBuckets.get(r.market_type) ?? { g: 0, r: 0, v: 0 };
+      mb.v++;
+      if (r.status === "green") mb.g++;
+      else if (r.status === "red") mb.r++;
+      marketBuckets.set(r.market_type, mb);
+
+      let mds = marketByDay.get(date);
+      if (!mds) {
+        mds = new Map();
+        marketByDay.set(date, mds);
+      }
+      const mm = mds.get(r.market_type) ?? { g: 0, r: 0, v: 0 };
+      mm.v++;
+      if (r.status === "green") mm.g++;
+      else if (r.status === "red") mm.r++;
+      mds.set(r.market_type, mm);
+    }
+  }
+
+  for (const [date, set] of fixturesPerDay) {
+    const day = byDay.get(date);
+    if (day) day.analyzed = set.size;
+  }
+  const dayList = [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+  for (const d of dayList) {
+    const n = d.greens + d.reds;
+    d.accuracy = n ? d.greens / n : 0;
+  }
+
+  const markets: TriagemEvolucaoMarket[] = TRIAGEM_MARKETS.map((market) => {
+    const b = marketBuckets.get(market) ?? { g: 0, r: 0, v: 0 };
+    const trend: TriagemEvolucaoDay[] = dayList.slice(-14).map((d) => {
+      const m = marketByDay.get(d.date)?.get(market);
+      const g = m?.g ?? 0;
+      const r = m?.r ?? 0;
+      return {
+        ...d,
+        published: m?.v ?? 0,
+        greens: g,
+        reds: r,
+        pending: 0,
+        accuracy: g + r ? g / (g + r) : 0,
+      };
+    });
+    const n = b.g + b.r;
+    return {
+      market,
+      volume: b.v,
+      greens: b.g,
+      reds: b.r,
+      accuracy: n ? b.g / n : 0,
+      trend,
+    };
+  });
+
+  const accN = totalGreens + totalReds;
+  return {
+    days: dayList,
+    markets,
+    totalAnalyzed: new Set(rows.map((r) => r.fixture_id)).size,
+    totalPublished,
+    overallAccuracy: accN ? totalGreens / accN : 0,
+  };
 }
