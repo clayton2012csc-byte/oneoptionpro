@@ -217,6 +217,9 @@ function openStream(
       }),
     },
   );
+}
+
+
 
 async function* readStream(res: Response): AsyncGenerator<string> {
   const reader = res.body!.getReader();
