@@ -6,6 +6,7 @@
  * Cada mercado tem conferência própria, então a calibração de um não afeta o outro.
  */
 import type { OwnPrediction } from "./own-prediction";
+import { buildMasterPrediction } from "./master-engine";
 
 export const TRIAGEM_MARKETS = [
   "under_1_5",
@@ -103,13 +104,13 @@ export interface TriagemEval {
   reasons: string[];
 }
 
-/** Placar mais provável da distribuição de Poisson ajustada (Dixon-Coles). */
+/** Placar mais provável da distribuição de Poisson ajustada (Dixon-Coles),
+ *  filtrado pela tendência 1X2 do Pipeline Mestre — elimina o placar
+ *  contradizer o vencedor previsto (ex.: casa vence + placar 1x1). */
 function topScore(pred: OwnPrediction): { h: number; a: number; p: number } | null {
-  const top = pred.topScores?.[0];
-  if (!top) return null;
-  const [h, a] = top.label.split("-").map((n) => Number(n));
-  if (!Number.isFinite(h) || !Number.isFinite(a)) return null;
-  return { h, a, p: top.p };
+  const master = buildMasterPrediction(pred);
+  if (!master.ready) return null;
+  return { h: master.exactScore.h, a: master.exactScore.a, p: master.exactScore.p };
 }
 
 /**

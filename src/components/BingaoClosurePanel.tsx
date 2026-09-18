@@ -1196,9 +1196,9 @@ export function BingaoClosurePanel() {
     })();
     const conf = (p: number) => Math.round(Math.min(99, p * 100 * 2.5));
     return [
-      { n: 1, type: "Fixo", label: `Placar ${t1.label.replace("-", "x")}`, detail: `Under 1.5 · ${t1.game.fixture?.teams.home.name} × ${t1.game.fixture?.teams.away.name}`, conf: conf(t1.p) },
-      { n: 2, type: "Fixo", label: `Placar ${t2.label.replace("-", "x")}`, detail: `Under 1.5 · ${t2.game.fixture?.teams.home.name} × ${t2.game.fixture?.teams.away.name}`, conf: conf(t2.p) },
-      { n: 3, type: "Fixo", label: `Placar ${t3.label.replace("-", "x")}`, detail: `Under 1.5 · ${t3.game.fixture?.teams.home.name} × ${t3.game.fixture?.teams.away.name}`, conf: conf(t3.p) },
+      { n: 1, type: "Fixo", label: `Placar ${t1.label.replace("-", "x")}`, detail: `Under 1.5 (soma ≤ 1) · ${t1.game.fixture?.teams.home.name} × ${t1.game.fixture?.teams.away.name}`, conf: conf(t1.p) },
+      { n: 2, type: "Fixo", label: `Placar ${t2.label.replace("-", "x")}`, detail: `Over 1.5 · placar cobertura (soma 2) · ${t2.game.fixture?.teams.home.name} × ${t2.game.fixture?.teams.away.name}`, conf: conf(t2.p) },
+      { n: 3, type: "Fixo", label: `Placar ${t3.label.replace("-", "x")}`, detail: `Over 1.5 · placar cobertura (soma 3) · ${t3.game.fixture?.teams.home.name} × ${t3.game.fixture?.teams.away.name}`, conf: conf(t3.p) },
       { n: 4, type: "Aposta Criada", label: "Empate + Over 9.5 escanteios", detail: `${drawBest.game.fixture?.teams.home.name} × ${drawBest.game.fixture?.teams.away.name}`, conf: Math.round(Math.min(99, drawBest.p * 100 * 1.8)) },
       { n: 5, type: "Aposta Criada", label: "Empate + Under 9.5 escanteios", detail: `${drawBest.game.fixture?.teams.home.name} × ${drawBest.game.fixture?.teams.away.name}`, conf: Math.round(Math.min(99, drawBest.p * 100 * 1.8)) },
     ];

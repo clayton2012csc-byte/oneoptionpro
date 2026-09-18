@@ -15,6 +15,7 @@ import {
   type ApiOddsResp, type TeamPreviewStats,
 } from "@/lib/api-football.functions";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
+import { buildMasterPrediction } from "@/lib/master-engine";
 import { setSelectedFixture } from "@/lib/selected-fixture";
 import { toggleFixture, usePinnedSections, type SectionId } from "@/lib/pinned-sections";
 
@@ -261,6 +262,7 @@ function PreviewBlock({ fixture }: { fixture: ApiFixture }) {
   }
   const { home, away, last } = q.data;
   const pred = computeOwnPrediction(home, away);
+  const master = buildMasterPrediction(pred);
   return (
     <div className="space-y-3">
       <div className="rounded-xl bg-black/30 p-3">
@@ -317,11 +319,11 @@ function PreviewBlock({ fixture }: { fixture: ApiFixture }) {
             </div>
             <p className="text-[10px] text-muted-foreground leading-relaxed">
               {pred.expectedGoals > 2.8 ? (
-                `IA detecta jogo com tendência de OVER (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '2-1'}.`
+                `IA detecta jogo com tendência de OVER (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${master.exactScore.label || '2-1'}. Tendência 1X2: ${master.trend.label}.`
               ) : pred.expectedGoals < 1.9 ? (
-                `IA detecta jogo com forte tendência de UNDER (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '1-0'}.`
+                `IA detecta jogo com forte tendência de UNDER (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${master.exactScore.label || '1-0'}. Tendência 1X2: ${master.trend.label}.`
               ) : (
-                `IA detecta jogo EQUILIBRADO (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '1-1'}.`
+                `IA detecta jogo EQUILIBRADO (${pred.expectedGoals.toFixed(2)} gols exp.). Placar sugerido: ${master.exactScore.label || '1-1'}. Tendência 1X2: ${master.trend.label}.`
               )}
             </p>
           </div>
@@ -533,12 +535,12 @@ function PredictionsTab({ fixture }: { fixture: ApiFixture }) {
   }
   const pred = computeOwnPrediction(q.data.home, q.data.away);
   if (!pred.ready) return <Empty>Sem dados suficientes das duas equipes para prever.</Empty>;
+  const master = buildMasterPrediction(pred);
 
   const advice =
-    pred.pHome > 0.55 ? `Favorito claro: ${fixture.teams.home.name}` :
-    pred.pAway > 0.55 ? `Favorito claro: ${fixture.teams.away.name}` :
-    pred.pDraw > 0.32 ? "Jogo equilibrado — empate provável" :
-    "Sem favorito destacado";
+    master.trend.winner === "home" ? `Favorito claro: ${fixture.teams.home.name}` :
+    master.trend.winner === "away" ? `Favorito claro: ${fixture.teams.away.name}` :
+    "Jogo equilibrado — empate provável";
 
   return (
     <div className="space-y-3">
@@ -625,11 +627,11 @@ function PredictionsTab({ fixture }: { fixture: ApiFixture }) {
       </div>
 
       <div>
-        <div className="text-[10px] font-bold uppercase text-muted-foreground mb-2">HT/FT · combinações mais prováveis</div>
+        <div className="text-[10px] font-bold uppercase text-muted-foreground mb-2">HT/FT · combinações mais prováveis (coerentes com a tendência)</div>
         <div className="grid grid-cols-4 gap-1.5">
-          {pred.htFt.map((s) => (
-            <div key={s.label} className="rounded-lg bg-primary/10 border border-primary/30 p-1.5 text-center">
-              <div className="text-sm font-bold tabular">{s.label}</div>
+          {master.htFt.list.map((s) => (
+            <div key={s.label} className={`rounded-lg border p-1.5 text-center ${s.label === master.htFt.primary ? "bg-primary/25 border-primary/60" : "bg-primary/10 border-primary/30"}`}>
+              <div className={`text-sm font-bold tabular ${s.label === master.htFt.primary ? "text-primary" : ""}`}>{s.label}</div>
               <div className="text-[10px] text-primary tabular">{pctFmt(s.p)}</div>
             </div>
           ))}
@@ -637,11 +639,11 @@ function PredictionsTab({ fixture }: { fixture: ApiFixture }) {
       </div>
 
       <div>
-        <div className="text-[10px] font-bold uppercase text-muted-foreground mb-2">Placares mais prováveis</div>
+        <div className="text-[10px] font-bold uppercase text-muted-foreground mb-2">Placares mais prováveis (filtrados pela tendência 1X2)</div>
         <div className="grid grid-cols-5 gap-1.5">
-          {pred.topScores.map((s) => (
-            <div key={s.label} className="rounded-lg bg-black/40 border border-white/5 p-1.5 text-center">
-              <div className="text-sm font-bold tabular">{s.label}</div>
+          {master.exactScores.map((s) => (
+            <div key={s.label} className={`rounded-lg border p-1.5 text-center ${s.label === master.exactScore.label ? "bg-primary/25 border-primary/60" : "bg-black/40 border-white/5"}`}>
+              <div className={`text-sm font-bold tabular ${s.label === master.exactScore.label ? "text-primary" : ""}`}>{s.label}</div>
               <div className="text-[10px] text-primary tabular">{pctFmt(s.p)}</div>
             </div>
           ))}

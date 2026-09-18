@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS public.triagem_records (
   predicted_value text NOT NULL,
   score_confidence int4 NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','green','red','void')),
+  passed boolean NOT NULL DEFAULT true,
+  probability double precision NOT NULL DEFAULT 0,
+  ceiling double precision NOT NULL DEFAULT 1,
+  reason jsonb NOT NULL DEFAULT '[]'::jsonb,
   result_score text,
   created_at timestamptz NOT NULL DEFAULT now(),
   graded_at timestamptz
@@ -21,6 +25,10 @@ CREATE TABLE IF NOT EXISTS public.triagem_records (
 
 ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS league text;
 ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS kickoff timestamptz;
+ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS passed boolean NOT NULL DEFAULT true;
+ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS probability double precision NOT NULL DEFAULT 0;
+ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS ceiling double precision NOT NULL DEFAULT 1;
+ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS reason jsonb NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS result_score text;
 ALTER TABLE public.triagem_records ADD COLUMN IF NOT EXISTS graded_at timestamptz;
 

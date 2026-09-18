@@ -10,6 +10,7 @@ import {
   type ApiFixture, type ApiEvent, type ApiTeamStats, type ApiLineup, type ApiStandingsResp,
 } from "@/lib/api-football.functions";
 import { computeOwnPrediction } from "@/lib/own-prediction";
+import { buildMasterPrediction } from "@/lib/master-engine";
 import { AiForecastTab } from "@/components/AiForecastTab";
 import { ShimmerRows, ShimmerSummary, ShimmerStats, ShimmerLineups, ShimmerTable } from "@/components/Shimmer";
 import { useFavorites, toggleFavorite, FavoriteButton as SharedFavoriteButton, NotificationButton as SharedNotificationButton } from "@/lib/favorites";
@@ -432,9 +433,10 @@ function AiPredictionCards({ fixture }: { fixture: ApiFixture }) {
     staleTime: 45 * 60_000,
   });
   const pred = useMemo(() => (q.data ? computeOwnPrediction(q.data.home, q.data.away) : null), [q.data]);
+  const master = useMemo(() => (pred?.ready ? buildMasterPrediction(pred) : null), [pred]);
 
   if (q.isLoading) return <ShimmerSummary />;
-  if (!pred || !pred.ready) return null;
+  if (!pred || !pred.ready || !master) return null;
 
   return (
     <div className="space-y-2">
@@ -445,13 +447,15 @@ function AiPredictionCards({ fixture }: { fixture: ApiFixture }) {
         <MiniStat label="Over 2.5" value={`${Math.round(pred.pOver25 * 100)}%`} tone={pred.pOver25 > 0.55 ? "good" : "default"} />
         <MiniStat label="Ambas marcam" value={`${Math.round(pred.pBTTS * 100)}%`} tone={pred.pBTTS > 0.55 ? "good" : "default"} />
       </div>
-      {pred.topScores.length > 0 && (
+      {master.exactScores.length > 0 && (
         <div className="rounded-2xl bg-card border border-border/60 p-3">
-          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Placares mais prováveis</div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">
+            Placares mais prováveis · tendência {master.trend.label}
+          </div>
           <div className="flex gap-2 overflow-x-auto scrollbar-none">
-            {pred.topScores.slice(0, 6).map((s) => (
-              <div key={s.label} className="shrink-0 rounded-xl bg-black/30 border border-white/10 px-3 py-2 text-center min-w-[68px]">
-                <div className="text-sm font-black tabular">{s.label}</div>
+            {master.exactScores.slice(0, 6).map((s) => (
+              <div key={s.label} className={`shrink-0 rounded-xl border px-3 py-2 text-center min-w-[68px] ${s.label === master.exactScore.label ? "bg-primary/15 border-primary/50" : "bg-black/30 border-white/10"}`}>
+                <div className={`text-sm font-black tabular ${s.label === master.exactScore.label ? "text-primary" : ""}`}>{s.label}</div>
                 <div className="text-[10px] text-primary tabular">{Math.round(s.p * 100)}%</div>
               </div>
             ))}
@@ -464,13 +468,9 @@ function AiPredictionCards({ fixture }: { fixture: ApiFixture }) {
           <span className="text-[11px] font-bold text-foreground">Palpite Estratégico OneOption</span>
         </div>
         <p className="text-[10px] text-muted-foreground leading-relaxed">
-          {pred.expectedGoals > 2.8 ? (
-            `IA detecta jogo com tendência de OVER (${pred.expectedGoals} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '2-1'}.`
-          ) : pred.expectedGoals < 2.0 ? (
-            `IA detecta jogo com forte tendência de UNDER (${pred.expectedGoals} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '1-0'}.`
-          ) : (
-            `IA detecta jogo EQUILIBRADO (${pred.expectedGoals} gols exp.). Placar sugerido: ${pred.topScores[0]?.label || '1-1'}.`
-          )}
+          Tendência {master.trend.label} (casa {Math.round(pred.pHome * 100)}% · empate {Math.round(pred.pDraw * 100)}% · fora {Math.round(pred.pAway * 100)}%).
+          Linha de gols: {master.goals.line} ({Math.round(master.goals.p * 100)}%) · placar sugerido {master.exactScore.label} · HT/FT {master.htFt.primary}.
+          {master.problems.length > 0 && ` Ajustes automáticos: ${master.problems.length}.`}
         </p>
       </div>
     </div>

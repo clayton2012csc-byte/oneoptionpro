@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMatchPreview, getFixtureStatistics, type ApiFixture } from "@/lib/api-football.functions";
 import { computeOwnPrediction, poissonCdf, pctFmt } from "@/lib/own-prediction";
+import { buildMasterPrediction } from "@/lib/master-engine";
 import { ShimmerSummary } from "@/components/Shimmer";
 import { AiCommentary } from "@/components/AiCommentary";
 import { saveMatchPrediction } from "@/lib/match-predictions";
@@ -167,6 +168,9 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
 
   const pred = useMemo(() => (q.data ? computeOwnPrediction(q.data.home, q.data.away) : null), [q.data]);
 
+  // PIPELINE MASTER — todas as etapas encadeadas (1X2 → placar → gols → HT/FT → BTTS)
+  const master = useMemo(() => (pred?.ready ? buildMasterPrediction(pred) : null), [pred]);
+
   const corners = useMemo(() => {
     if (!q.data) return null;
     const { home, away } = q.data;
@@ -258,24 +262,16 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
         pOver15: pred.pOver15
       };
 
-      const bttsYesValue = pred.pBTTS >= 0.5;
-      let scoreH = 0;
-      let scoreA = 0;
-      let scoreP = 0;
-      
-      pred.matrix.forEach((row, h) =>
-        row.forEach((p, a) => {
-          if (p > scoreP) {
-            scoreH = h;
-            scoreA = a;
-            scoreP = p;
-          }
-        }),
-      );
+      // Pipeline mestre: 1X2 vencedor → placar filtrado → BTTS coerente
+      const m = buildMasterPrediction(pred);
+      const bttsYesValue = m.btts.pick === "SIM";
+      const scoreH = m.exactScore.h;
+      const scoreA = m.exactScore.a;
+      const scoreP = m.exactScore.p;
 
       // Salva os mercados principais para o painel de assertividade
       const marketsToSave = [
-        { market: "1X2", p: Math.max(pred.pHome, pred.pDraw, pred.pAway), score: 0, meta: { pHome: pred.pHome, pDraw: pred.pDraw, pAway: pred.pAway } },
+        { market: "1X2", p: m.trend.winner === "home" ? pred.pHome : m.trend.winner === "away" ? pred.pAway : pred.pDraw, score: 0, meta: { pHome: pred.pHome, pDraw: pred.pDraw, pAway: pred.pAway, label: m.trend.label } },
         { market: "U1.5", p: 1 - pred.pOver15, score: 0, meta: {} },
         { market: "BTTS", p: bttsYesValue ? pred.pBTTS : 1 - pred.pBTTS, score: 0, meta: { pBTTS: pred.pBTTS } },
         { market: "SCORE", p: scoreP, score: 0, meta: { predictedScore: `${scoreH}-${scoreA}` } }
@@ -297,22 +293,20 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
   if (q.isLoading) return <ShimmerSummary />;
 
   // Se não houver dados de previsão, mostra mensagem amigável
-  if (!pred || !pred.ready) {
+  if (!pred || !pred.ready || !master) {
     return <p className="text-sm text-muted-foreground py-8 text-center">Sem histórico suficiente para a previsão.</p>;
   }
 
-  // A partir daqui, pred.ready é true. Definimos constantes para o render.
-  const pUnder15 = 1 - pred.pOver15;
-  const goalsOver15 = pred.pOver15 > pUnder15;
-  const goalsP = goalsOver15 ? pred.pOver15 : pUnder15;
-  const goalsLabel = goalsOver15 ? "Over 1.5" : "Under 1.5";
-  const goalsSelection = goalsOver15 ? "Mais de 1.5 gols" : "Menos de 1.5 gols";
+  // A partir daqui, pred.ready é true. Constantes alinhadas ao PIPELINE MASTER.
+  const goalsOver15 = master.goals.side === "over";
+  const goalsP = master.goals.p;
+  const goalsLabel = master.goals.line;
+  const goalsSelection = master.goals.selection;
   const goalsStatus: "none" | "green" | "red" = results
     ? (goalsOver15 ? (results.totalGoals > 1.5 ? "green" : "red") : (results.totalGoals < 1.5 ? "green" : "red"))
     : "none";
 
-
-  const bttsYes = pred.pBTTS >= 0.5;
+  const bttsYes = master.btts.pick === "SIM";
   const bttsStatus: "none" | "green" | "red" = results ? (results.btts === bttsYes ? "green" : "red") : "none";
 
   const hasCorners = !!corners;
@@ -327,18 +321,10 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
   const cardsStatus: "none" | "green" | "red" =
     (results?.cards != null && hasCards) ? ((results.cards > 4.5) === cardsOver ? "green" : "red") : "none";
 
-  let bestScoreH = 0;
-  let bestScoreA = 0;
-  let bestScoreP = 0;
-  pred.matrix.forEach((row, h) =>
-    row.forEach((p, a) => {
-      if (p > bestScoreP) {
-        bestScoreH = h;
-        bestScoreA = a;
-        bestScoreP = p;
-      }
-    }),
-  );
+  // Placar exato — filtrado pela tendência 1X2 (pipeline mestre)
+  const bestScoreH = master.exactScore.h;
+  const bestScoreA = master.exactScore.a;
+  const bestScoreP = master.exactScore.p;
   
   const scoreStatus: "none" | "green" | "red" = results
     ? results.goalsH === bestScoreH && results.goalsA === bestScoreA
@@ -371,10 +357,13 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
         buildContext={() => {
           const commentaryLines = [
             `Jogo: ${fixture.teams.home.name} x ${fixture.teams.away.name}`,
-            `Probabilidades: casa ${pctFmt(pred.pHome)}, empate ${pctFmt(pred.pDraw)}, fora ${pctFmt(pred.pAway)}`,
+            `Tendência: ${master.trend.label} (casa ${pctFmt(pred.pHome)}, empate ${pctFmt(pred.pDraw)}, fora ${pctFmt(pred.pAway)})`,
+            `Placar coerente: ${master.exactScore.label} ${pctFmt(master.exactScore.p)}`,
             `Gols esperados: ${pred.lambdaHome} x ${pred.lambdaAway} (total ${pred.expectedGoals.toFixed(2)})`,
+            `Linha de gols: ${master.goals.line} ${pctFmt(master.goals.p)} · BTTS ${master.btts.selection}`,
+            `HT/FT principal: ${master.htFt.primary}`,
             `Over 1.5 ${pctFmt(pred.pOver15)}, Over 2.5 ${pctFmt(pred.pOver25)}, Under 2.5 ${pctFmt(pred.pUnder25)}, BTTS ${pctFmt(pred.pBTTS)}`,
-            `Placares mais prováveis: ${pred.topScores.map((s) => `${s.label} ${pctFmt(s.p)}`).join(", ")}`,
+            `Placares mais prováveis: ${master.exactScores.map((s) => `${s.label} ${pctFmt(s.p)}`).join(", ")}`,
           ];
 
           if (corners) {
@@ -387,11 +376,20 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
             commentaryLines.push(`Cartões: média ${cards.total.toFixed(2)}, Mais 4.5 ${pctFmt(cards.over45)}`);
           }
 
-          commentaryLines.push(`Intervalo/Final: ${pred.htFt.map((h) => `${h.label} ${pctFmt(h.p)}`).join(", ")}`);
-
           return commentaryLines.join("\n");
         }}
       />
+
+      {master.problems.length > 0 && (
+        <div className="rounded-2xl bg-amber-500/10 border border-amber-500/40 px-3 py-2.5">
+          <div className="text-[10px] font-black uppercase tracking-widest text-amber-400 mb-1">Coerência de previsões · ajustes automáticos</div>
+          <ul className="space-y-0.5">
+            {master.problems.map((p, i) => (
+              <li key={i} className="text-[10px] text-amber-200/80 leading-snug">· {p}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Grid Responsiva: 1 coluna no celular, 2 colunas no PC */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -459,13 +457,19 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
           </Card>
 
           <Card title="Mercado Principal (Gols)" hint={`Média Esperada: ${pred.expectedGoals.toFixed(2)}`}>
-            <SinglePick label={goalsLabel} p={goalsP} status={goalsStatus} note="Foco Under 1.5 para Bingão" slip={{ ...slipBase, market: "Gols", selection: goalsSelection }} />
+            <SinglePick
+              label={goalsLabel}
+              p={goalsP}
+              status={goalsStatus}
+              note={goalsOver15 ? (master.goals.consistent ? "Tendência de gols — alinhada ao placar" : "Linha ajustada à tendência") : "Foco Under 1.5 para Bingão"}
+              slip={{ ...slipBase, market: "Gols", selection: goalsSelection }}
+            />
           </Card>
 
           <Card title="Probabilidade de Ambas Marcam">
             <SinglePick
-              label={bttsYes ? "Ambas marcam · Sim" : "Ambas marcam · Não"}
-              p={bttsYes ? pred.pBTTS : 1 - pred.pBTTS}
+              label={"Ambas marcam · " + (bttsYes ? "Sim" : "Não")}
+              p={master.btts.p}
               status={bttsStatus}
               slip={{ ...slipBase, market: "Ambas Marcam", selection: bttsYes ? "Sim" : "Não" }}
             />
@@ -496,11 +500,18 @@ export function AiForecastTab({ fixture }: { fixture: ApiFixture }) {
             />
           </Card>
 
-          <Card title="Intervalo / Final">
+          <Card title="Intervalo / Final" hint="Coerente com a tendência">
             <div className="grid grid-cols-3 gap-2 pt-1">
-              {pred.htFt.slice(0, 9).map((h) => (
-                <div key={h.label} className="rounded-xl bg-white/5 border border-white/10 px-2 py-2.5 text-center transition hover:bg-white/10">
-                  <div className="text-[11px] font-black tabular uppercase">{h.label}</div>
+              {master.htFt.list.slice(0, 9).map((h) => (
+                <div
+                  key={h.label}
+                  className={`rounded-xl border px-2 py-2.5 text-center transition hover:bg-white/10 ${
+                    h.label === master.htFt.primary
+                      ? "bg-primary/15 border-primary/50 ring-1 ring-primary/40"
+                      : "bg-white/5 border-white/10"
+                  }`}
+                >
+                  <div className={`text-[11px] font-black tabular uppercase ${h.label === master.htFt.primary ? "text-primary" : ""}`}>{h.label}</div>
                   <div className="text-[10px] text-primary tabular font-bold mt-0.5">{pctFmt(h.p)}</div>
                 </div>
               ))}
