@@ -35,8 +35,8 @@ function toParts(msg: ChatMessage) {
 }
 
 /** Chamada de texto ao Gemini. `system` são instruções de sistema (concatenadas). */
-/** Modelos alternativos usados quando o principal está sobrecarregado (503). */
-const FALLBACK_MODELS = ["gemini-3.5-flash", "gemini-2.5-flash"];
+/** Modelos alternativos usados quando o principal está sobrecarregado (503/404). */
+const FALLBACK_MODELS = ["gemini-flash-latest"];
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -47,6 +47,13 @@ export async function geminiChat(opts: {
   maxOutputTokens?: number;
   /** Força a resposta como JSON (responseMimeType application/json). */
   json?: boolean;
+  /**
+   * Orçamento de raciocínio interno do Gemini 3. O padrão 0 desliga o "thinking",
+   * que sozinho fazia respostas simples levarem mais de 100s (o chat parecia travado).
+   */
+  thinkingBudget?: number;
+  /** Tempo máximo por tentativa (ms). */
+  timeoutMs?: number;
 }): Promise<string> {
   const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
   let lastError: Error | null = null;
@@ -57,7 +64,9 @@ export async function geminiChat(opts: {
         return await callGemini(model, opts);
       } catch (e) {
         lastError = e as Error;
-        if (!/\[(429|5\d\d)\]|Muitas requisições/.test(lastError.message)) throw lastError;
+        if (!/\[(404|429|5\d\d)\]|Muitas requisições|abort|timeout|tempo limite/i.test(lastError.message))
+          throw lastError;
+        if (/\[404\]/.test(lastError.message)) break; // modelo inexistente: tenta o próximo
         await sleep(1200 * (attempt + 1));
       }
     }
@@ -67,31 +76,53 @@ export async function geminiChat(opts: {
   );
 }
 
+
 async function callGemini(
   model: string,
-  opts: { system: string[]; messages: ChatMessage[]; temperature?: number; maxOutputTokens?: number; json?: boolean },
+  opts: {
+    system: string[];
+    messages: ChatMessage[];
+    temperature?: number;
+    maxOutputTokens?: number;
+    json?: boolean;
+    thinkingBudget?: number;
+    timeoutMs?: number;
+  },
 ): Promise<string> {
   const key = requireKey();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 90_000);
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
-        contents: opts.messages.map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: toParts(m),
-        })),
-        generationConfig: {
-          temperature: opts.temperature ?? 0.6,
-          maxOutputTokens: opts.maxOutputTokens ?? 2048,
-          ...(opts.json ? { responseMimeType: "application/json" } : {}),
-        },
-      }),
-    },
-  );
+  let res: Response;
+  try {
+    res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      {
+        method: "POST",
+        signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+          contents: opts.messages.map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: toParts(m),
+          })),
+          generationConfig: {
+            temperature: opts.temperature ?? 0.6,
+            maxOutputTokens: opts.maxOutputTokens ?? 2048,
+            thinkingConfig: { thinkingBudget: opts.thinkingBudget ?? 0 },
+            ...(opts.json ? { responseMimeType: "application/json" } : {}),
+          },
+        }),
+      },
+    );
+  } catch (e) {
+    const msg = (e as Error).name === "AbortError" ? "tempo limite excedido" : (e as Error).message;
+    throw new Error(`Falha na IA [504]: ${msg}`);
+  } finally {
+    clearTimeout(timer);
+  }
+
 
   if (!res.ok) {
     const body = await res.text();
