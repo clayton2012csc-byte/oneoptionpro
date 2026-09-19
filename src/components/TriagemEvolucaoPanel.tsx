@@ -89,7 +89,22 @@ export function TriagemEvolucaoPanel() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => check.mutate()}
+          disabled={check.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:border-primary/40 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${check.isPending ? "animate-spin" : ""}`} />
+          {check.isPending ? "Conferindo…" : "Conferir agora"}
+        </button>
+        {check.data && (
+          <span className="text-[10px] text-muted-foreground">
+            {check.data.graded} palpite{check.data.graded === 1 ? "" : "s"} conferido
+            {check.data.graded === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
+
 
       {q.isLoading && <p className="text-sm text-muted-foreground">Carregando evolução…</p>}
       {q.error && <p className="text-sm text-destructive">Erro: {(q.error as Error).message}</p>}
