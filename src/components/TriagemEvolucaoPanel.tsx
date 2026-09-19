@@ -45,12 +45,19 @@ function ma<T extends { accuracy: number }>(data: T[], k: number): Array<T & { m
 
 export function TriagemEvolucaoPanel() {
   const fetchEvo = useServerFn(getTriagemEvolucao);
+  const grade = useServerFn(runTriagemGrading);
+  const qc = useQueryClient();
   const [days, setDays] = useState(30);
   const q = useQuery({
     queryKey: ["triagem", "evolucao", days],
     queryFn: () => fetchEvo({ data: { days } }),
-    staleTime: 120_000,
-    refetchInterval: 300_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const check = useMutation({
+    mutationFn: () => grade({ data: undefined as never }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["triagem"] }),
   });
 
   const evo = q.data;
