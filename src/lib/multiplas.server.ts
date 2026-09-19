@@ -56,7 +56,7 @@ export interface PopularMultiplesSnapshot {
  * baixa = 1 jogo (>=5) · média = 2 jogos (>=50 com 2-3 jogos) · alta = 4 jogos (>=600).
  */
 const MIN_LEG_ODD = 5;
-const MAX_LEG_ODD = 14;
+const MAX_LEG_ODD = 26;
 
 const LEVELS: {
   level: MultipleLevel;
@@ -184,8 +184,8 @@ function fixtureLegs(r: TicketRow): MultipleLeg[] {
   // guarda a melhor opção de cada faixa de odd (5-7, 7-10, 10-14)
   const bands: [number, number][] = [
     [MIN_LEG_ODD, 7],
-    [7, 10],
-    [10, MAX_LEG_ODD],
+    [7, 12],
+    [12, MAX_LEG_ODD],
   ];
   const out: MultipleLeg[] = [];
   for (const [lo, hi] of bands) {
