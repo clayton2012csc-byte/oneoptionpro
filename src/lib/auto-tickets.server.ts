@@ -295,17 +295,14 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
       }
     }
 
-    // Persiste os selos da varredura (leitura instantânea ao abrir o site).
-    if (scans.length) {
-      const ids = scans.map((s) => Number(s["fixture_id"]));
-      await db.from("ai_predictions").delete().eq("market", "scan_snapshot").in("fixture_id", ids);
-      const { error: insErr } = await db.from("ai_predictions").insert(scans as never);
-      // banco ainda sem a coluna market_sub_type: repete sem o campo para não perder a varredura
-      if (insErr) {
-        const legacy = scans.map(({ market_sub_type: _omit, ...rest }) => rest);
-        await db.from("ai_predictions").insert(legacy as never);
-      }
-    }
+    // Persiste os selos da varredura em blocos pequenos (um bloco grande falhava em silêncio).
+    const savedScans = await persistScanSnapshots(scans);
+
+    // Recuperação: jogos futuros que já têm bilhete mas ficaram sem selo.
+    const backfilled = await backfillScanSnapshots(600).catch((e) => {
+      console.warn("[auto-tickets] backfill falhou", (e as Error).message);
+      return 0;
+    });
 
     // Registra a rodada da varredura (histórico/diagnóstico).
     await db.from("ai_rounds").insert({
