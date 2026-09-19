@@ -10,6 +10,14 @@
 
 export type MultipleLevel = "baixa" | "media" | "alta";
 
+export interface LegPart {
+  market: string;
+  selection: string;
+  prob: number;
+  odd: number;
+  status?: "green" | "red" | "void" | null;
+}
+
 export interface MultipleLeg {
   fixtureId: number;
   home: string;
@@ -22,6 +30,8 @@ export interface MultipleLeg {
   selection: string;
   prob: number;
   odd: number;
+  /** combinação de mercados do MESMO jogo usada para alcançar a odd alvo */
+  parts?: LegPart[];
   status?: "green" | "red" | "void" | null;
 }
 
@@ -41,11 +51,42 @@ export interface PopularMultiplesSnapshot {
   tickets: PopularMultiple[];
 }
 
-const LEVELS: { level: MultipleLevel; label: string; target: number; minProb: number }[] = [
-  { level: "baixa", label: "Segura", target: 5, minProb: 0.55 },
-  { level: "media", label: "Equilibrada", target: 50, minProb: 0.4 },
-  { level: "alta", label: "Ousada", target: 600, minProb: 0.18 },
+/**
+ * Cada jogo entra com odd combinada mínima de 5 (mercados do mesmo jogo somados).
+ * baixa = 1 jogo (>=5) · média = 2 jogos (>=50 com 2-3 jogos) · alta = 4 jogos (>=600).
+ */
+const MIN_LEG_ODD = 5;
+const MAX_LEG_ODD = 14;
+
+const LEVELS: {
+  level: MultipleLevel;
+  label: string;
+  target: number;
+  games: number;
+  minProb: number;
+}[] = [
+  { level: "baixa", label: "Segura", target: 5, games: 1, minProb: 0.1 },
+  { level: "media", label: "Equilibrada", target: 50, games: 2, minProb: 0.05 },
+  { level: "alta", label: "Ousada", target: 600, games: 4, minProb: 0.008 },
 ];
+
+/** Mercados preferidos para odd alta (pedido do produto). */
+const HIGH_ODD_HINTS = [
+  "placar exato",
+  "placar múltiplo",
+  "margem de vitória",
+  "intervalo",
+  "casa vence",
+  "visitante vence",
+  "empate",
+  "resultado",
+];
+
+function isHighOdd(market: string) {
+  const m = market.toLowerCase();
+  return HIGH_ODD_HINTS.some((h) => m.includes(h));
+}
+
 
 const CACHE_PREFIX = "popular_multiples:";
 
