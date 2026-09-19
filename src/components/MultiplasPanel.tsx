@@ -100,70 +100,95 @@ function TicketCard({ t }: { t: PopularMultiple }) {
   };
 
   return (
-    <article className={`group relative overflow-hidden rounded-2xl border shadow-xl shadow-background/30 ${ui.cls}`}>
+    <article
+      className={`group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-white/10 p-5 shadow-lg shadow-background/30 transition-all duration-300 hover:border-primary/30 ${ui.cls}`}
+    >
       <div className="absolute inset-0 -z-10 bg-card/80 backdrop-blur-xl" />
-      <div className="border-b border-white/5 px-4 py-3">
-        <div className="flex items-start gap-3">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-current/20 bg-background/50 ${ui.text}`}>
-            <Icon className="h-4 w-4" />
+      <div className="absolute inset-x-0 top-0 -z-10 h-px bg-primary/40 opacity-0 transition-opacity group-hover:opacity-100" />
+
+      {/* Top Bar: nível & status */}
+      <div className="relative z-10 flex items-center justify-between px-1">
+        <div className="flex items-center gap-3">
+          <div className={`flex h-6 w-6 items-center justify-center rounded-lg border border-white/5 bg-black/40 shadow-inner ${ui.text}`}>
+            <Icon className="h-3.5 w-3.5" />
           </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <div>
-              <div className={`text-[9px] font-black uppercase tracking-widest ${ui.text}`}>Múltipla popular</div>
-              <h3 className="text-[15px] font-black tracking-tight">{ui.title}</h3>
-            </div>
-            <span
-              className={`ml-auto rounded-lg border px-2 py-1 text-[8px] font-black uppercase tracking-wide ${
-                t.status === "green"
-                  ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-                  : t.status === "red"
-                    ? "border-red-500/40 bg-red-500/15 text-red-300"
-                    : "border-white/10 bg-white/5 text-muted-foreground"
-              }`}
-            >
-              {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
+          <div className="flex flex-col">
+            <span className="text-[10px] font-black uppercase leading-none tracking-widest text-white/80">
+              {ui.title}
+            </span>
+            <span className="mt-0.5 text-[8px] font-bold uppercase tracking-tighter text-muted-foreground/50">
+              Múltipla popular
             </span>
           </div>
         </div>
-      </div>
-
-        <div className="mt-3 flex items-end justify-between gap-3">
-          <div>
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Odd combinada</div>
-            <div className={`text-2xl font-black tabular-nums ${ui.text}`}>@{t.totalOdd.toFixed(2)}</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Confiança conjunta</div>
-            <div className="text-sm font-black tabular-nums text-foreground">{pct(t.prob)}</div>
-          </div>
+        <div
+          className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${
+            t.status === "green"
+              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+              : t.status === "red"
+                ? "border-red-500/40 bg-red-500/15 text-red-300"
+                : "border-white/5 bg-black/60 text-white/40"
+          }`}
+        >
+          <span className="text-[10px] font-black uppercase tracking-widest">
+            {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
+          </span>
         </div>
       </div>
 
-      <div className="divide-y divide-white/5">
+      {/* Odd combinada */}
+      <div className="relative z-10 flex items-end justify-between gap-4 rounded-2xl border border-white/5 bg-black/30 px-4 py-3">
+        <div>
+          <div className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Odd combinada</div>
+          <div className={`text-3xl font-black leading-none tabular ${ui.text}`}>@{t.totalOdd.toFixed(2)}</div>
+        </div>
+        <div className="text-right">
+          <div className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">Confiança</div>
+          <div className="text-lg font-black leading-none tabular text-white/90">{pct(t.prob)}</div>
+        </div>
+      </div>
+
+      {/* Pernas do bilhete, no padrão dos cards de jogo */}
+      <div className="relative z-10 flex flex-col gap-2">
         {t.legs.map((l, i) => (
           <button
             key={`${l.fixtureId}-${i}`}
             type="button"
             onClick={() => addLeg(l)}
-            className="w-full px-4 py-3 text-left transition-colors hover:bg-white/[0.04]"
+            className="group/leg relative overflow-hidden rounded-2xl border border-white/5 bg-black/25 px-3 py-3 text-left transition-all hover:border-primary/30 hover:bg-black/40"
             aria-label={`Adicionar ${l.selection} ao bilhete`}
           >
-            <div className="flex items-center gap-3">
-              <div className="relative flex h-10 w-14 shrink-0 items-center justify-center">
-                {l.homeLogo ? <img src={l.homeLogo} alt="" className="absolute left-0 h-8 w-8 object-contain drop-shadow-md" loading="lazy" /> : null}
-                {l.awayLogo ? <img src={l.awayLogo} alt="" className="absolute right-0 h-8 w-8 object-contain drop-shadow-md" loading="lazy" /> : null}
+            <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center overflow-hidden opacity-[0.16]">
+              {l.homeLogo ? <img src={l.homeLogo} alt="" className="absolute -left-6 h-28 w-28 object-contain brightness-125" /> : null}
+              {l.awayLogo ? <img src={l.awayLogo} alt="" className="absolute -right-6 h-28 w-28 object-contain brightness-125" /> : null}
+            </div>
+
+            <div className="relative z-10 flex items-center gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/5 bg-black/40 shadow-xl">
+                {l.homeLogo ? <img src={l.homeLogo} alt="" className="h-7 w-7 object-contain drop-shadow-md" loading="lazy" /> : null}
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[12px] font-black">
+                <div className="truncate text-[15px] font-black leading-tight tracking-tight text-white">
                   {l.home} <span className="text-muted-foreground">×</span> {l.away}
                 </div>
-                <div className="mt-0.5 flex items-center gap-1 text-[9px] font-semibold text-muted-foreground">
+                <div className="mt-1 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70">
                   <CalendarClock className="h-3 w-3" />
                   <span className="truncate">{l.league ? `${l.league} · ` : ""}{hora(l.kickoff)}</span>
                 </div>
               </div>
-              <div className="shrink-0">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/5 bg-black/40 shadow-xl">
+                {l.awayLogo ? <img src={l.awayLogo} alt="" className="h-7 w-7 object-contain drop-shadow-md" loading="lazy" /> : null}
+              </div>
+            </div>
+
+            <div className="relative z-10 mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">{l.market}</div>
+                <div className="truncate text-[12px] font-black text-foreground">{l.selection}</div>
+              </div>
+              <span className="text-[11px] font-black tabular text-emerald-400">{pct(l.prob)}</span>
+              <span className={`text-[12px] font-black tabular ${ui.text}`}>@{l.odd.toFixed(2)}</span>
+              <span className="shrink-0">
                 {l.status === "green" ? (
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
                 ) : l.status === "red" ? (
@@ -173,25 +198,17 @@ function TicketCard({ t }: { t: PopularMultiple }) {
                 ) : (
                   <Plus className="h-4 w-4 text-muted-foreground" />
                 )}
-              </div>
-            </div>
-            <div className="mt-2 flex items-center gap-2 rounded-xl border border-white/5 bg-background/40 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground">{l.market}</div>
-                <div className="truncate text-[11px] font-bold text-foreground">{l.selection}</div>
-              </div>
-              <span className="text-[10px] font-black tabular-nums text-emerald-400">{pct(l.prob)}</span>
-              <span className={`text-[11px] font-black tabular-nums ${ui.text}`}>@{l.odd.toFixed(2)}</span>
+              </span>
             </div>
           </button>
         ))}
       </div>
 
-      <div className="border-t border-white/5 p-3">
+      <div className="relative z-10 mt-1 border-t border-white/5 pt-4">
         <button
           type="button"
           onClick={addTicket}
-          className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 text-[10px] font-black uppercase tracking-widest text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-primary/10 text-[11px] font-black uppercase tracking-widest text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
         >
           <Ticket className="h-4 w-4" />
           Montar este bilhete
