@@ -26,6 +26,31 @@ function missingTable(error: { code?: string; message?: string } | null): boolea
   );
 }
 
+/**
+ * O PostgREST devolve no máximo 1000 linhas por consulta — sem paginação
+ * o relatório diário ficava congelado nas primeiras 1000 avaliações.
+ */
+async function fetchAllRows(
+  select: string,
+  apply: (q: any) => any,
+  max = 20000,
+): Promise<{ rows: any[]; missing: boolean }> {
+  const out: any[] = [];
+  const page = 1000;
+  for (let from = 0; from < max; from += page) {
+    const t = await table();
+    const { data, error } = await apply(t.select(select)).range(from, from + page - 1);
+    if (error) {
+      if (missingTable(error)) return { rows: [], missing: true };
+      throw new Error(error.message);
+    }
+    const chunk = data ?? [];
+    out.push(...chunk);
+    if (chunk.length < page) break;
+  }
+  return { rows: out, missing: false };
+}
+
 export interface TriagemRow {
   id: string;
   fixture_id: number;
