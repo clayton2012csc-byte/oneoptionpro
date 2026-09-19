@@ -300,8 +300,21 @@ async function applyResults(snapshot: PopularMultiplesSnapshot): Promise<Popular
         leg.status = null;
         continue;
       }
-      const hit = picks.find((p) => p.market === leg.market && p.selection === leg.selection);
-      leg.status = (hit?.status as MultipleLeg["status"]) ?? null;
+      const parts = leg.parts?.length
+        ? leg.parts
+        : [{ market: leg.market, selection: leg.selection, prob: leg.prob, odd: leg.odd } as LegPart];
+      const states: (string | null)[] = parts.map((part) => {
+        const hit = picks.find((p) => p.market === part.market && p.selection === part.selection);
+        part.status = (hit?.status as LegPart["status"]) ?? null;
+        return part.status ?? null;
+      });
+      if (leg.parts?.length) leg.parts = parts;
+      leg.status = states.some((s) => s === "red")
+        ? "red"
+        : states.every((s) => s === "green")
+          ? "green"
+          : null;
+
     }
     const states = t.legs.map((l) => l.status);
     if (states.some((s) => s === "red")) t.status = "red";
