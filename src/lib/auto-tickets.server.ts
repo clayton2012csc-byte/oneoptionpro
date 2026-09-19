@@ -395,6 +395,7 @@ export async function backfillScanSnapshots(limit = 600): Promise<number> {
   }
 
   const missing = rows.filter((r) => !have.has(Number(r.fixture_id)));
+  console.log("[backfill] candidatos", rows.length, "com selo", have.size, "faltando", missing.length);
   if (!missing.length) return 0;
 
   const scans = missing.map((r) => {
