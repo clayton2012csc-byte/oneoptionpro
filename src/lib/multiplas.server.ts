@@ -212,17 +212,18 @@ function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: 
   if (cands.length < games) return null;
 
 
+  /** alvo proporcional à quantidade de pernas já escolhidas */
   const cost = (legs: MultipleLeg[]) => {
     const odd = legs.reduce((s, l) => s * l.odd, 1);
     const prob = legs.reduce((s, l) => s * l.prob, 1);
-    const d = Math.log(odd) - Math.log(target);
+    const partial = Math.pow(target, legs.length / games);
+    const d = Math.log(odd) - Math.log(partial);
     // ficar abaixo do alvo pesa mais que passar dele
-    const dist = d < 0 ? -d * 6 : d * 2;
+    const dist = d < 0 ? -d * 6 : d * 4;
     return dist - prob * 3;
   };
 
-
-  let beam: MultipleLeg[][] = cands.slice(0, 60).map((l) => [l]);
+  let beam: MultipleLeg[][] = [...cands].sort((a, b) => cost([a]) - cost([b])).slice(0, 60).map((l) => [l]);
   for (let depth = 1; depth < games; depth++) {
     const next: MultipleLeg[][] = [];
     for (const legs of beam.slice(0, 40)) {
@@ -236,6 +237,7 @@ function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: 
     next.sort((a, b) => cost(a) - cost(b));
     beam = next.slice(0, 120);
   }
+
 
   const full = beam.filter((l) => l.length === games);
   if (!full.length) return null;
