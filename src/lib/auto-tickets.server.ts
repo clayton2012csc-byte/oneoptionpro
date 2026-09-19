@@ -684,6 +684,15 @@ export async function gradePending(limit = 400): Promise<number> {
     if (await gradeGame(row, fx)) graded++;
   }
 
+  // Fecha as triagens pendentes de jogos já encerrados usando o placar salvo
+  // (não gasta API) — inclusive as que ficaram para trás em execuções antigas.
+  try {
+    const { gradeTriagemBacklog } = await import("./triagem.server");
+    await gradeTriagemBacklog();
+  } catch (e) {
+    console.warn("[triagem] backlog falhou", (e as Error).message);
+  }
+
   return graded;
 }
 
