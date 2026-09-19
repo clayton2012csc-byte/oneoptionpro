@@ -307,7 +307,9 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
   let totalReds = 0;
 
   for (const r of rows) {
-    const date = (r.created_at ?? "").slice(0, 10);
+    // Dia do JOGO (fuso de São Paulo) — o upsert mantém created_at antigo,
+    // então agrupar pela gravação congelava o relatório diário.
+    const date = spDay(r.kickoff) || (r.created_at ?? "").slice(0, 10);
     if (!date) continue;
 
     let day = byDay.get(date);
