@@ -312,7 +312,7 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
       })(),
       status: "done",
       fixtures_analyzed: processed,
-      notes: `graded=${graded} scans=${scans.length}`,
+      notes: `graded=${graded} scans=${savedScans}/${scans.length} backfill=${backfilled}`,
     } as never);
 
     const total = upcoming.length;
@@ -329,6 +329,101 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     await releaseLock();
   }
 }
+
+const SNAPSHOT_CHUNK = 50;
+
+/**
+ * Grava os selos em blocos pequenos (delete + insert por bloco), com repetição
+ * sem `market_sub_type` quando a coluna não existir. Retorna quantos foram salvos.
+ */
+async function persistScanSnapshots(rows: Record<string, unknown>[]): Promise<number> {
+  if (!rows.length) return 0;
+  const db = await admin();
+  let saved = 0;
+  for (let i = 0; i < rows.length; i += SNAPSHOT_CHUNK) {
+    const chunk = rows.slice(i, i + SNAPSHOT_CHUNK);
+    const ids = chunk.map((s) => Number(s["fixture_id"]));
+    try {
+      await db.from("ai_predictions").delete().eq("market", "scan_snapshot").in("fixture_id", ids);
+      const { error } = await db.from("ai_predictions").insert(chunk as never);
+      if (error) {
+        const legacy = chunk.map(({ market_sub_type: _omit, ...rest }) => rest);
+        const { error: legacyErr } = await db.from("ai_predictions").insert(legacy as never);
+        if (legacyErr) {
+          console.error("[auto-tickets] selos não gravados", ids.length, legacyErr.message);
+          continue;
+        }
+      }
+      saved += chunk.length;
+    } catch (e) {
+      console.error("[auto-tickets] selos não gravados (exceção)", (e as Error).message);
+    }
+  }
+  return saved;
+}
+
+/**
+ * Reconstrói os selos de jogos futuros que já têm bilhete montado mas ficaram sem
+ * snapshot (falha silenciosa em rodadas grandes). Usa apenas dados já salvos no
+ * banco — zero requisições à API-Football.
+ */
+export async function backfillScanSnapshots(limit = 600): Promise<number> {
+  const db = await admin();
+  const now = new Date().toISOString();
+  const horizon = new Date(Date.now() + HORIZON_HOURS * 60 * 60 * 1000).toISOString();
+
+  const { data: tickets } = await db
+    .from("auto_tickets")
+    .select("fixture_id, kickoff, league, home, away, picks, meta")
+    .gt("kickoff", now)
+    .lt("kickoff", horizon)
+    .eq("status", "pending")
+    .order("kickoff", { ascending: true })
+    .limit(limit);
+  const rows = (tickets ?? []).filter((r) => Array.isArray(r.picks) && (r.picks as unknown[]).length);
+  if (!rows.length) return 0;
+
+  const ids = rows.map((r) => Number(r.fixture_id));
+  const have = new Set<number>();
+  for (let i = 0; i < ids.length; i += 200) {
+    const { data: existing } = await db
+      .from("ai_predictions")
+      .select("fixture_id")
+      .eq("market", "scan_snapshot")
+      .in("fixture_id", ids.slice(i, i + 200));
+    for (const r of existing ?? []) have.add(Number(r.fixture_id));
+  }
+
+  const missing = rows.filter((r) => !have.has(Number(r.fixture_id)));
+  if (!missing.length) return 0;
+
+  const scans = missing.map((r) => {
+    const picks = (r.picks as { market: string; selection: string; prob: number; score?: number | null; elite?: boolean | null }[]) ?? [];
+    const meta = (r.meta ?? {}) as { goalsSubType?: string | null; eliteMin?: Record<string, number> };
+    const bestProb = picks.reduce((m, p) => (typeof p.prob === "number" && p.prob > m ? p.prob : m), 0);
+    return {
+      fixture_id: Number(r.fixture_id),
+      market: "scan_snapshot",
+      market_sub_type: meta.goalsSubType ?? null,
+      probability: Math.round(bestProb * 100),
+      score: 0,
+      features: {
+        fixtureId: Number(r.fixture_id),
+        kickoff: r.kickoff,
+        home: r.home,
+        away: r.away,
+        league: r.league,
+        goalsSubType: meta.goalsSubType ?? null,
+        bestProb,
+        picks,
+        pillarContext: { eliteMin: meta.eliteMin ?? {} },
+      } as unknown as never,
+    } as Record<string, unknown>;
+  });
+
+  return persistScanSnapshots(scans);
+}
+
 
 async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const home = teamStatsFromIndex(fx.teams.home.id, idx);
