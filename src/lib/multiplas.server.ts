@@ -116,63 +116,98 @@ interface TicketRow {
   picks: { market: string; selection: string; prob: number; odd: number; score?: number }[] | null;
 }
 
-/** Melhor palpite de cada jogo (1 mercado por jogo), já filtrado por odd útil. */
+/**
+ * Para cada jogo monta a MELHOR combinação de mercados do próprio jogo
+ * (1 a 3 seleções) até alcançar odd >= 5, priorizando a maior probabilidade.
+ */
+function fixtureLegs(r: TicketRow): MultipleLeg[] {
+  const picks = (r.picks ?? [])
+    .filter((p) => Number.isFinite(p?.prob) && Number.isFinite(p?.odd) && p.odd > 1.08 && p.prob > 0.12)
+    .sort((a, b) => b.prob * b.odd - a.prob * a.odd)
+    .slice(0, 9);
+  if (!picks.length) return [];
+
+  const base = {
+    fixtureId: Number(r.fixture_id),
+    home: r.home,
+    away: r.away,
+    homeLogo: r.home_logo,
+    awayLogo: r.away_logo,
+    league: r.league,
+    kickoff: r.kickoff,
+  };
+
+  const combos: MultipleLeg[] = [];
+  const push = (parts: LegPart[]) => {
+    const odd = parts.reduce((s, p) => s * p.odd, 1);
+    const prob = parts.reduce((s, p) => s * p.prob, 1);
+    if (odd < MIN_LEG_ODD || odd > MAX_LEG_ODD) return;
+    combos.push({
+      ...base,
+      market: parts.map((p) => p.market).join(" + "),
+      selection: parts.map((p) => p.selection).join(" + "),
+      prob,
+      odd: Number(odd.toFixed(2)),
+      parts,
+    });
+  };
+
+  const norm = (p: (typeof picks)[number]): LegPart => ({
+    market: p.market,
+    selection: p.selection,
+    prob: p.prob,
+    odd: p.odd,
+  });
+
+  for (let i = 0; i < picks.length; i++) {
+    const a = norm(picks[i]!);
+    push([a]);
+    for (let j = i + 1; j < picks.length; j++) {
+      const b = norm(picks[j]!);
+      if (b.market === a.market) continue;
+      push([a, b]);
+      for (let k = j + 1; k < picks.length; k++) {
+        const c = norm(picks[k]!);
+        if (c.market === a.market || c.market === b.market) continue;
+        push([a, b, c]);
+      }
+    }
+  }
+
+  // prioriza probabilidade e, em empate, mercados de odd alta pedidos pelo produto
+  combos.sort(
+    (x, y) =>
+      y.prob - x.prob ||
+      Number(isHighOdd(y.market)) - Number(isHighOdd(x.market)) ||
+      x.odd - y.odd,
+  );
+  return combos.slice(0, 2);
+}
+
+/** Uma perna por jogo (a melhor), ordenada pela chance de acerto. */
 function candidateLegs(rows: TicketRow[]): MultipleLeg[] {
   const out: MultipleLeg[] = [];
   for (const r of rows) {
-    const picks = (r.picks ?? []).filter(
-      (p) => Number.isFinite(p?.prob) && Number.isFinite(p?.odd) && p.odd > 1.05 && p.prob > 0.1,
-    );
-    for (const p of picks) {
-      out.push({
-        fixtureId: Number(r.fixture_id),
-        home: r.home,
-        away: r.away,
-        homeLogo: r.home_logo,
-        awayLogo: r.away_logo,
-        league: r.league,
-        kickoff: r.kickoff,
-        market: p.market,
-        selection: p.selection,
-        prob: p.prob,
-        odd: p.odd,
-      });
-    }
+    const best = fixtureLegs(r)[0];
+    if (best) out.push(best);
   }
-  return out;
+  return out.sort((a, b) => b.prob - a.prob);
 }
 
-/**
- * Busca em feixe (beam search): combina até 4 pernas de jogos distintos
- * procurando a odd total mais próxima do alvo com a maior probabilidade.
- */
-function bestCombo(pool: MultipleLeg[], target: number, minProb: number): MultipleLeg[] | null {
-  const cands = pool
-    .filter((l) => l.prob >= minProb)
-    .sort((a, b) => b.prob - a.prob)
-    .slice(0, 90);
-  if (!cands.length) return null;
+/** Escolhe N jogos distintos garantindo odd total >= alvo com a maior probabilidade. */
+function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: number): MultipleLeg[] | null {
+  const cands = pool.filter((l) => l.prob >= minProb).slice(0, 120);
+  if (cands.length < games) return null;
 
-  const logTarget = Math.log(target);
   const cost = (legs: MultipleLeg[]) => {
     const odd = legs.reduce((s, l) => s * l.odd, 1);
     const prob = legs.reduce((s, l) => s * l.prob, 1);
-    return Math.abs(Math.log(odd) - logTarget) * 2 - prob;
+    const falta = odd < target ? (target - odd) / target : 0;
+    return falta * 10 - prob;
   };
 
-  let beam: MultipleLeg[][] = cands.map((l) => [l]);
-  let best: MultipleLeg[] | null = null;
-  let bestCost = Infinity;
-
-  for (let depth = 1; depth <= 4; depth++) {
-    for (const legs of beam) {
-      const c = cost(legs);
-      if (c < bestCost) {
-        bestCost = c;
-        best = legs;
-      }
-    }
-    if (depth === 4) break;
+  let beam: MultipleLeg[][] = cands.slice(0, 60).map((l) => [l]);
+  for (let depth = 1; depth < games; depth++) {
     const next: MultipleLeg[][] = [];
     for (const legs of beam.slice(0, 40)) {
       const used = new Set(legs.map((l) => l.fixtureId));
@@ -186,7 +221,10 @@ function bestCombo(pool: MultipleLeg[], target: number, minProb: number): Multip
     beam = next.slice(0, 120);
   }
 
-  return best;
+  const full = beam.filter((l) => l.length === games);
+  if (!full.length) return null;
+  full.sort((a, b) => cost(a) - cost(b));
+  return full[0] ?? null;
 }
 
 function buildTickets(rows: TicketRow[]): PopularMultiple[] {
@@ -196,7 +234,12 @@ function buildTickets(rows: TicketRow[]): PopularMultiple[] {
 
   for (const lv of LEVELS) {
     const available = pool.filter((l) => !usedFixtures.has(l.fixtureId));
-    const legs = bestCombo(available.length >= 4 ? available : pool, lv.target, lv.minProb);
+    const legs = bestCombo(
+      available.length >= lv.games ? available : pool,
+      lv.target,
+      lv.games,
+      lv.minProb,
+    );
     if (!legs?.length) continue;
     for (const l of legs) usedFixtures.add(l.fixtureId);
     const totalOdd = legs.reduce((s, l) => s * l.odd, 1);
@@ -207,12 +250,13 @@ function buildTickets(rows: TicketRow[]): PopularMultiple[] {
       targetOdd: lv.target,
       totalOdd: Number(totalOdd.toFixed(2)),
       prob,
-      legs: legs.sort((a, b) => a.kickoff.localeCompare(b.kickoff)),
+      legs: [...legs].sort((a, b) => a.kickoff.localeCompare(b.kickoff)),
       status: "pending",
     });
   }
   return tickets;
 }
+
 
 /** Aplica o resultado já conferido em `auto_tickets` nas pernas do bilhete. */
 async function applyResults(snapshot: PopularMultiplesSnapshot): Promise<PopularMultiplesSnapshot> {
