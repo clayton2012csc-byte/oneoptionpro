@@ -4,8 +4,8 @@
  *
  * Níveis (odd total alvo):
  *   baixa  ~5x   · média ~50x · alta ~600x
- * Regras: no máximo 4 jogos por bilhete, 1 mercado por jogo, jogos distintos,
- * e sempre a combinação com a maior probabilidade conjunta para a faixa de odd.
+ * Regras: no máximo 4 jogos por bilhete, jogos distintos e seleção automática
+ * do mercado (ou combinação do próprio jogo) com melhor indicação estatística.
  */
 
 export type MultipleLevel = "baixa" | "media" | "alta";
@@ -15,6 +15,7 @@ export interface LegPart {
   selection: string;
   prob: number;
   odd: number;
+  score?: number;
   status?: "green" | "red" | "void" | null;
 }
 
@@ -70,16 +71,13 @@ const LEVELS: {
   { level: "alta", label: "Ousada", target: 600, games: 4, minProb: 0.008 },
 ];
 
-/** Mercados preferidos para odd alta (pedido do produto). */
+/** Mercados usados para chegar à odd alta sem incluir opções aleatórias. */
 const HIGH_ODD_HINTS = [
-  "placar exato",
-  "placar múltiplo",
+  "evolução do jogo",
+  "placar exato seco",
+  "placar múltiplo exato",
   "margem de vitória",
-  "intervalo",
-  "casa vence",
-  "visitante vence",
-  "empate",
-  "resultado",
+  "aposta montada",
 ];
 
 function isHighOdd(market: string) {
@@ -113,18 +111,31 @@ interface TicketRow {
   away: string;
   home_logo: string | null;
   away_logo: string | null;
-  picks: { market: string; selection: string; prob: number; odd: number; score?: number }[] | null;
+  picks: { market: string; selection: string; prob: number; odd: number; score?: number; elite?: boolean }[] | null;
+}
+
+function indication(p: NonNullable<TicketRow["picks"]>[number]): number {
+  const score = Number(p.score);
+  return Number.isFinite(score) ? score / 100 : p.prob;
 }
 
 /**
- * Para cada jogo monta a MELHOR combinação de mercados do próprio jogo
- * (1 a 3 seleções) até alcançar odd >= 5, priorizando a maior probabilidade.
+ * Para cada jogo escolhe primeiro um mercado indicado que sozinho já alcance
+ * odd 5. Só combina 2 ou 3 mercados quando isso for realmente necessário.
  */
 function fixtureLegs(r: TicketRow): MultipleLeg[] {
   const picks = (r.picks ?? [])
-    .filter((p) => Number.isFinite(p?.prob) && Number.isFinite(p?.odd) && p.odd > 1.08 && p.prob > 0.12)
-    .sort((a, b) => b.prob * b.odd - a.prob * a.odd)
-    .slice(0, 9);
+    .filter(
+      (p) =>
+        Number.isFinite(p?.prob) &&
+        Number.isFinite(p?.odd) &&
+        p.odd > 1.08 &&
+        p.prob > 0.08 &&
+        p.elite !== false &&
+        isHighOdd(p.market),
+    )
+    .sort((a, b) => indication(b) - indication(a) || b.prob - a.prob)
+    .slice(0, 8);
   if (!picks.length) return [];
 
   const base = {
@@ -157,6 +168,7 @@ function fixtureLegs(r: TicketRow): MultipleLeg[] {
     selection: p.selection,
     prob: p.prob,
     odd: p.odd,
+    score: Number.isFinite(Number(p.score)) ? Number(p.score) : undefined,
   });
 
   for (let i = 0; i < picks.length; i++) {
@@ -174,11 +186,18 @@ function fixtureLegs(r: TicketRow): MultipleLeg[] {
     }
   }
 
-  // prioriza probabilidade e, em empate, mercados de odd alta pedidos pelo produto
+  // A indicação do motor vem antes da odd: um mercado único bem indicado ganha
+  // de uma mistura desnecessária. Depois, prioriza chance e menos seleções.
+  const comboIndication = (leg: MultipleLeg) => {
+    const parts = leg.parts ?? [];
+    if (!parts.length) return 0;
+    return Math.min(...parts.map((p) => p.score != null ? p.score / 100 : p.prob));
+  };
   combos.sort(
     (x, y) =>
+      comboIndication(y) - comboIndication(x) ||
+      (x.parts?.length ?? 1) - (y.parts?.length ?? 1) ||
       y.prob - x.prob ||
-      Number(isHighOdd(y.market)) - Number(isHighOdd(x.market)) ||
       x.odd - y.odd,
   );
   // guarda a melhor opção de cada faixa de odd (5-7, 7-10, 10-14)

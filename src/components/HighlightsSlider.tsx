@@ -39,21 +39,26 @@ function MultipleSlide({ t }: { t: PopularMultiple }) {
 
   const addTicket = () => {
     for (const leg of t.legs) {
-      const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
-      if (items.some((i) => i.id === id)) continue;
-      toggleItem({
-        id,
-        fixtureId: leg.fixtureId,
-        home: leg.home,
-        away: leg.away,
-        league: leg.league ?? undefined,
-        time: leg.kickoff,
-        market: leg.market,
-        selection: leg.selection,
-        prob: leg.prob,
-        odd: leg.odd,
-        type: "ia",
-      });
+      const parts = leg.parts?.length
+        ? leg.parts
+        : [{ market: leg.market, selection: leg.selection, prob: leg.prob, odd: leg.odd }];
+      for (const part of parts) {
+        const id = makeSlipId(leg.fixtureId, part.market, part.selection);
+        if (items.some((i) => i.id === id)) continue;
+        toggleItem({
+          id,
+          fixtureId: leg.fixtureId,
+          home: leg.home,
+          away: leg.away,
+          league: leg.league ?? undefined,
+          time: leg.kickoff,
+          market: part.market,
+          selection: part.selection,
+          prob: part.prob,
+          odd: part.odd,
+          type: "ia",
+        });
+      }
     }
     setOpen(true);
   };
