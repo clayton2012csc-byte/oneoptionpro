@@ -204,8 +204,14 @@ async function applyResults(snapshot: PopularMultiplesSnapshot): Promise<Popular
 
   for (const t of snapshot.tickets) {
     for (const leg of t.legs) {
+      const lg = logos.get(leg.fixtureId);
+      if (lg) {
+        if (!leg.homeLogo) leg.homeLogo = lg.home;
+        if (!leg.awayLogo) leg.awayLogo = lg.away;
+      }
       const picks = graded.get(leg.fixtureId);
       if (!picks) {
+
         leg.status = null;
         continue;
       }
