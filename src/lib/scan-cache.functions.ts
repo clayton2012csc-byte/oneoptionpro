@@ -7,7 +7,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { AutoPickLite, ScanPrediction } from "./market-filter";
 
 const MARKET_KEY = "scan_snapshot";
-const WINDOW_MS = 48 * 60 * 60 * 1000;
+const WINDOW_MS = 72 * 60 * 60 * 1000;
 
 /** Reduz os picks persistidos ao que o card exibe: placar exato (ou melhor placar múltiplo) + top 3 demais mercados. */
 function toBadgePicks(raw: unknown): AutoPickLite[] | undefined {
@@ -91,7 +91,7 @@ export const loadScanPredictions = createServerFn({ method: "GET" }).handler(asy
     .eq("market", MARKET_KEY)
     .gt("created_at", since)
     .order("created_at", { ascending: false })
-    .limit(2000);
+    .limit(3000);
   if (error) throw new Error(error.message);
 
   const seen = new Set<number>();
