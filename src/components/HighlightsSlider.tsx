@@ -159,6 +159,14 @@ export function HighlightsSlider({ fixtures }: { fixtures: ApiFixture[] }) {
   const items = pickHighlights(fixtures);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const pausedRef = useRef(false);
+  const loadMultiples = useServerFn(popularMultiples);
+  const multiQ = useQuery({
+    queryKey: ["multiplas-populares"],
+    queryFn: () => loadMultiples(),
+    staleTime: 60_000,
+  });
+  const multiples = multiQ.data?.tickets ?? [];
+
 
   useEffect(() => {
     if (items.length <= 1) return;
