@@ -67,37 +67,46 @@ function hora(iso: string) {
   });
 }
 
-function TicketCard({ t }: { t: PopularMultiple }) {
+function TicketCard({ t, onCheck, checking }: { t: PopularMultiple; onCheck: () => void; checking: boolean }) {
   const ui = LEVEL_UI[t.level] ?? LEVEL_UI["media"]!;
   const { Icon } = ui;
   const items = useBetSlip((s) => s.items);
   const toggleItem = useBetSlip((s) => s.toggleItem);
   const setOpen = useBetSlip((s) => s.setOpen);
 
+  const legParts = (leg: PopularMultiple["legs"][number]) =>
+    leg.parts?.length
+      ? leg.parts
+      : [{ market: leg.market, selection: leg.selection, prob: leg.prob, odd: leg.odd }];
+
   const addLeg = (leg: PopularMultiple["legs"][number]) => {
-    const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
-    toggleItem({
-      id,
-      fixtureId: leg.fixtureId,
-      home: leg.home,
-      away: leg.away,
-      league: leg.league ?? undefined,
-      time: leg.kickoff,
-      market: leg.market,
-      selection: leg.selection,
-      prob: leg.prob,
-      odd: leg.odd,
-      type: "ia",
-    });
+    for (const part of legParts(leg)) {
+      const id = makeSlipId(leg.fixtureId, part.market, part.selection);
+      if (items.some((item) => item.id === id)) continue;
+      toggleItem({
+        id,
+        fixtureId: leg.fixtureId,
+        home: leg.home,
+        away: leg.away,
+        league: leg.league ?? undefined,
+        time: leg.kickoff,
+        market: part.market,
+        selection: part.selection,
+        prob: part.prob,
+        odd: part.odd,
+        type: "ia",
+      });
+    }
   };
 
+  const legInSlip = (leg: PopularMultiple["legs"][number]) =>
+    legParts(leg).every((p) => items.some((i) => i.id === makeSlipId(leg.fixtureId, p.market, p.selection)));
+
   const addTicket = () => {
-    for (const leg of t.legs) {
-      const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
-      if (!items.some((item) => item.id === id)) addLeg(leg);
-    }
+    for (const leg of t.legs) addLeg(leg);
     setOpen(true);
   };
+
 
   return (
     <article
@@ -121,20 +130,33 @@ function TicketCard({ t }: { t: PopularMultiple }) {
             </span>
           </div>
         </div>
-        <div
-          className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${
-            t.status === "green"
-              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-              : t.status === "red"
-                ? "border-red-500/40 bg-red-500/15 text-red-300"
-                : "border-white/5 bg-black/60 text-white/40"
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase tracking-widest">
-            {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${
+              t.status === "green"
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                : t.status === "red"
+                  ? "border-red-500/40 bg-red-500/15 text-red-300"
+                  : "border-white/5 bg-black/60 text-white/40"
+            }`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onCheck}
+            disabled={checking}
+            title="Conferir resultado agora"
+            className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-black/50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3 w-3 ${checking ? "animate-spin" : ""}`} />
+            Conferir
+          </button>
         </div>
       </div>
+
 
       {/* Odd combinada */}
       <div className="relative z-10 flex items-end justify-between gap-4 rounded-2xl border border-white/5 bg-black/30 px-4 py-3">
@@ -181,25 +203,41 @@ function TicketCard({ t }: { t: PopularMultiple }) {
               </div>
             </div>
 
-            <div className="relative z-10 mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">{l.market}</div>
-                <div className="truncate text-[12px] font-black text-foreground">{l.selection}</div>
+            <div className="relative z-10 mt-3 space-y-1.5">
+              {legParts(l).map((p, pi) => (
+                <div
+                  key={`${p.market}-${pi}`}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                      {p.market}
+                    </div>
+                    <div className="truncate text-[12px] font-black text-foreground">{p.selection}</div>
+                  </div>
+                  <span className="text-[11px] font-black tabular text-emerald-400">{pct(p.prob)}</span>
+                  <span className={`text-[12px] font-black tabular ${ui.text}`}>@{p.odd.toFixed(2)}</span>
+                  <span className="shrink-0">
+                    {p.status === "green" ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    ) : p.status === "red" ? (
+                      <XCircle className="h-4 w-4 text-red-400" />
+                    ) : items.some((item) => item.id === makeSlipId(l.fixtureId, p.market, p.selection)) ? (
+                      <Check className={`h-4 w-4 ${ui.text}`} />
+                    ) : (
+                      <Plus className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-black/30 px-3 py-1.5">
+                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                  Odd do jogo {legInSlip(l) ? "· no bilhete" : ""}
+                </span>
+                <span className={`text-[12px] font-black tabular ${ui.text}`}>@{l.odd.toFixed(2)}</span>
               </div>
-              <span className="text-[11px] font-black tabular text-emerald-400">{pct(l.prob)}</span>
-              <span className={`text-[12px] font-black tabular ${ui.text}`}>@{l.odd.toFixed(2)}</span>
-              <span className="shrink-0">
-                {l.status === "green" ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                ) : l.status === "red" ? (
-                  <XCircle className="h-4 w-4 text-red-400" />
-                ) : items.some((item) => item.id === makeSlipId(l.fixtureId, l.market, l.selection)) ? (
-                  <Check className={`h-4 w-4 ${ui.text}`} />
-                ) : (
-                  <Plus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </span>
             </div>
+
           </button>
         ))}
       </div>
@@ -259,9 +297,10 @@ export function MultiplasPanel() {
           </button>
         </div>
           <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-           Três combinações diárias montadas somente com os mercados analisados na aba Previsões.
-           Toque em uma seleção ou monte o bilhete completo.
+           Cada jogo entra com odd mínima de 5, combinando os mercados do próprio jogo (placar exato,
+           margem de vitória, resultado, escanteios). Baixa ≈ 5x · Média ≈ 50x · Alta ≈ 600x.
         </p>
+
         {q.data?.builtAt && tickets.length > 0 && (
           <p className="text-[10px] text-muted-foreground mt-2">
             Montado em {new Date(q.data.builtAt).toLocaleString("pt-BR")}.
@@ -279,7 +318,7 @@ export function MultiplasPanel() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {tickets.map((t) => (
-          <TicketCard key={t.level} t={t} />
+          <TicketCard key={t.level} t={t} onCheck={() => void q.refetch()} checking={q.isFetching} />
         ))}
       </div>
     </section>
