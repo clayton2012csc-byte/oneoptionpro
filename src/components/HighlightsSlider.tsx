@@ -224,6 +224,10 @@ export function HighlightsSlider({ fixtures }: { fixtures: ApiFixture[] }) {
         </button>
         <div ref={scrollerRef} className="overflow-x-auto scrollbar-none scroll-smooth">
         <div className="flex gap-2.5 pb-1">
+          {multiples.map((t) => (
+            <MultipleSlide key={t.level} t={t} />
+          ))}
+
 
           {items.map((f) => {
             const st = statusInfo(f);
