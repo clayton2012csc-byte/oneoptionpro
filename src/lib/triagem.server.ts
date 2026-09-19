@@ -51,6 +51,19 @@ async function fetchAllRows(
   return { rows: out, missing: false };
 }
 
+/** Data do jogo no fuso de São Paulo (YYYY-MM-DD). */
+function spDay(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 export interface TriagemRow {
   id: string;
   fixture_id: number;
