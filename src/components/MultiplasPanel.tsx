@@ -203,25 +203,41 @@ function TicketCard({ t, onCheck, checking }: { t: PopularMultiple; onCheck: () 
               </div>
             </div>
 
-            <div className="relative z-10 mt-3 flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">{l.market}</div>
-                <div className="truncate text-[12px] font-black text-foreground">{l.selection}</div>
+            <div className="relative z-10 mt-3 space-y-1.5">
+              {legParts(l).map((p, pi) => (
+                <div
+                  key={`${p.market}-${pi}`}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                      {p.market}
+                    </div>
+                    <div className="truncate text-[12px] font-black text-foreground">{p.selection}</div>
+                  </div>
+                  <span className="text-[11px] font-black tabular text-emerald-400">{pct(p.prob)}</span>
+                  <span className={`text-[12px] font-black tabular ${ui.text}`}>@{p.odd.toFixed(2)}</span>
+                  <span className="shrink-0">
+                    {p.status === "green" ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    ) : p.status === "red" ? (
+                      <XCircle className="h-4 w-4 text-red-400" />
+                    ) : items.some((item) => item.id === makeSlipId(l.fixtureId, p.market, p.selection)) ? (
+                      <Check className={`h-4 w-4 ${ui.text}`} />
+                    ) : (
+                      <Plus className="h-4 w-4 text-muted-foreground" />
+                    )}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between rounded-xl border border-white/5 bg-black/30 px-3 py-1.5">
+                <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground/60">
+                  Odd do jogo {legInSlip(l) ? "· no bilhete" : ""}
+                </span>
+                <span className={`text-[12px] font-black tabular ${ui.text}`}>@{l.odd.toFixed(2)}</span>
               </div>
-              <span className="text-[11px] font-black tabular text-emerald-400">{pct(l.prob)}</span>
-              <span className={`text-[12px] font-black tabular ${ui.text}`}>@{l.odd.toFixed(2)}</span>
-              <span className="shrink-0">
-                {l.status === "green" ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                ) : l.status === "red" ? (
-                  <XCircle className="h-4 w-4 text-red-400" />
-                ) : items.some((item) => item.id === makeSlipId(l.fixtureId, l.market, l.selection)) ? (
-                  <Check className={`h-4 w-4 ${ui.text}`} />
-                ) : (
-                  <Plus className="h-4 w-4 text-muted-foreground" />
-                )}
-              </span>
             </div>
+
           </button>
         ))}
       </div>
