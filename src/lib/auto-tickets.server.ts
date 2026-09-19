@@ -332,6 +332,13 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
 
 const SNAPSHOT_CHUNK = 50;
 
+/** Mantém a probabilidade dentro de 0..100 (a coluna não aceita valores maiores). */
+function clampPct(v: unknown): number {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
 /**
  * Grava os selos em blocos pequenos (delete + insert por bloco), com repetição
  * sem `market_sub_type` quando a coluna não existir. Retorna quantos foram salvos.
@@ -401,12 +408,14 @@ export async function backfillScanSnapshots(limit = 600): Promise<number> {
   const scans = missing.map((r) => {
     const picks = (r.picks as { market: string; selection: string; prob: number; score?: number | null; elite?: boolean | null }[]) ?? [];
     const meta = (r.meta ?? {}) as { goalsSubType?: string | null; eliteMin?: Record<string, number> };
-    const bestProb = picks.reduce((m, p) => (typeof p.prob === "number" && p.prob > m ? p.prob : m), 0);
+    const raw = picks.reduce((m, p) => (typeof p.prob === "number" && p.prob > m ? p.prob : m), 0);
+    // picks antigos podem ter prob em % (0..100); normaliza sempre para 0..1
+    const bestProb = raw > 1 ? raw / 100 : raw;
     return {
       fixture_id: Number(r.fixture_id),
       market: "scan_snapshot",
       market_sub_type: meta.goalsSubType ?? null,
-      probability: Math.round(bestProb * 100),
+      probability: clampPct(bestProb * 100),
       score: 0,
       features: {
         fixtureId: Number(r.fixture_id),
