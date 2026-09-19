@@ -9,6 +9,10 @@ async function runCron({ request }: { request: Request }): Promise<Response> {
     const raw = Number(url.searchParams.get("limit") ?? 500);
     const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 500, 1), 1000);
     const mode = url.searchParams.get("mode");
+    if (mode === "backfill") {
+      const { backfillScanSnapshots } = await import("@/lib/auto-tickets.server");
+      return Response.json({ ok: true, backfilled: await backfillScanSnapshots(limit) });
+    }
     if (mode === "grade") {
       const { gradePending, purgeExpiredCache, persistMarketRanking } = await import("@/lib/auto-tickets.server");
       const { AUTO_MARKETS } = await import("@/lib/auto-ticket");
