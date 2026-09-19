@@ -297,8 +297,8 @@ export function MultiplasPanel() {
           </button>
         </div>
           <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-           Cada jogo entra com odd mínima de 5, combinando os mercados do próprio jogo (placar exato,
-           margem de vitória, resultado, escanteios). Baixa ≈ 5x · Média ≈ 50x · Alta ≈ 600x.
+           O robô escolhe o mercado mais indicado de cada jogo. Só combina Evolução, Placar Exato,
+           Placar Múltiplo, Margem de Vitória ou Aposta Montada quando precisar alcançar odd 5.
         </p>
 
         {q.data?.builtAt && tickets.length > 0 && (
