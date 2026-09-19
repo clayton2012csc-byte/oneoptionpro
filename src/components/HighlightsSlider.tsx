@@ -195,8 +195,11 @@ export function HighlightsSlider({ fixtures }: { fixtures: ApiFixture[] }) {
     <section className="pt-3">
       <div className="flex items-center justify-between px-1 mb-2">
         <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Principais jogos do dia</h2>
-        <span className="text-[10px] text-muted-foreground/70">{items.length} destaques</span>
+        <span className="text-[10px] text-muted-foreground/70">
+          {multiples.length > 0 ? `${multiples.length} múltiplas · ` : ""}{items.length} destaques
+        </span>
       </div>
+
 
       <div
         className="relative -mx-3 px-3 group/slider"
