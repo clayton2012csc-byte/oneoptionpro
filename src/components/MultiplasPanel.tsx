@@ -318,7 +318,7 @@ export function MultiplasPanel() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         {tickets.map((t) => (
-          <TicketCard key={t.level} t={t} />
+          <TicketCard key={t.level} t={t} onCheck={() => void q.refetch()} checking={q.isFetching} />
         ))}
       </div>
     </section>
