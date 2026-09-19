@@ -34,3 +34,14 @@ export const getTriagemEvolucao = createServerFn({ method: "GET" })
       return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
     }
   });
+
+/** Confere agora as triagens de jogos encerrados (usa o placar já salvo — não gasta API). */
+export const runTriagemGrading = createServerFn({ method: "POST" }).handler(async () => {
+  const { gradeTriagemBacklog } = await import("./triagem.server");
+  try {
+    return { graded: await gradeTriagemBacklog() };
+  } catch (e) {
+    console.warn("[triagem] conferência indisponível:", (e as Error).message);
+    return { graded: 0 };
+  }
+});
