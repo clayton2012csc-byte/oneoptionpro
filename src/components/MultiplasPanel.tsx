@@ -67,37 +67,46 @@ function hora(iso: string) {
   });
 }
 
-function TicketCard({ t }: { t: PopularMultiple }) {
+function TicketCard({ t, onCheck, checking }: { t: PopularMultiple; onCheck: () => void; checking: boolean }) {
   const ui = LEVEL_UI[t.level] ?? LEVEL_UI["media"]!;
   const { Icon } = ui;
   const items = useBetSlip((s) => s.items);
   const toggleItem = useBetSlip((s) => s.toggleItem);
   const setOpen = useBetSlip((s) => s.setOpen);
 
+  const legParts = (leg: PopularMultiple["legs"][number]) =>
+    leg.parts?.length
+      ? leg.parts
+      : [{ market: leg.market, selection: leg.selection, prob: leg.prob, odd: leg.odd }];
+
   const addLeg = (leg: PopularMultiple["legs"][number]) => {
-    const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
-    toggleItem({
-      id,
-      fixtureId: leg.fixtureId,
-      home: leg.home,
-      away: leg.away,
-      league: leg.league ?? undefined,
-      time: leg.kickoff,
-      market: leg.market,
-      selection: leg.selection,
-      prob: leg.prob,
-      odd: leg.odd,
-      type: "ia",
-    });
+    for (const part of legParts(leg)) {
+      const id = makeSlipId(leg.fixtureId, part.market, part.selection);
+      if (items.some((item) => item.id === id)) continue;
+      toggleItem({
+        id,
+        fixtureId: leg.fixtureId,
+        home: leg.home,
+        away: leg.away,
+        league: leg.league ?? undefined,
+        time: leg.kickoff,
+        market: part.market,
+        selection: part.selection,
+        prob: part.prob,
+        odd: part.odd,
+        type: "ia",
+      });
+    }
   };
 
+  const legInSlip = (leg: PopularMultiple["legs"][number]) =>
+    legParts(leg).every((p) => items.some((i) => i.id === makeSlipId(leg.fixtureId, p.market, p.selection)));
+
   const addTicket = () => {
-    for (const leg of t.legs) {
-      const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
-      if (!items.some((item) => item.id === id)) addLeg(leg);
-    }
+    for (const leg of t.legs) addLeg(leg);
     setOpen(true);
   };
+
 
   return (
     <article
