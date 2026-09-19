@@ -130,20 +130,33 @@ function TicketCard({ t, onCheck, checking }: { t: PopularMultiple; onCheck: () 
             </span>
           </div>
         </div>
-        <div
-          className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${
-            t.status === "green"
-              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
-              : t.status === "red"
-                ? "border-red-500/40 bg-red-500/15 text-red-300"
-                : "border-white/5 bg-black/60 text-white/40"
-          }`}
-        >
-          <span className="text-[10px] font-black uppercase tracking-widest">
-            {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
-          </span>
+        <div className="flex items-center gap-1.5">
+          <div
+            className={`flex items-center gap-2 rounded-xl border px-2.5 py-1 ${
+              t.status === "green"
+                ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                : t.status === "red"
+                  ? "border-red-500/40 bg-red-500/15 text-red-300"
+                  : "border-white/5 bg-black/60 text-white/40"
+            }`}
+          >
+            <span className="text-[10px] font-black uppercase tracking-widest">
+              {t.status === "green" ? "Green" : t.status === "red" ? "Red" : "Em aberto"}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={onCheck}
+            disabled={checking}
+            title="Conferir resultado agora"
+            className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-black/50 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-60"
+          >
+            <RefreshCw className={`h-3 w-3 ${checking ? "animate-spin" : ""}`} />
+            Conferir
+          </button>
         </div>
       </div>
+
 
       {/* Odd combinada */}
       <div className="relative z-10 flex items-end justify-between gap-4 rounded-2xl border border-white/5 bg-black/30 px-4 py-3">
