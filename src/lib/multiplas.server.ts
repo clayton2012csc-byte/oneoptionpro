@@ -14,6 +14,8 @@ export interface MultipleLeg {
   fixtureId: number;
   home: string;
   away: string;
+  homeLogo: string | null;
+  awayLogo: string | null;
   league: string | null;
   kickoff: string;
   market: string;
@@ -68,6 +70,8 @@ interface TicketRow {
   league: string | null;
   home: string;
   away: string;
+  home_logo: string | null;
+  away_logo: string | null;
   picks: { market: string; selection: string; prob: number; odd: number; score?: number }[] | null;
 }
 
@@ -83,6 +87,8 @@ function candidateLegs(rows: TicketRow[]): MultipleLeg[] {
         fixtureId: Number(r.fixture_id),
         home: r.home,
         away: r.away,
+        homeLogo: r.home_logo,
+        awayLogo: r.away_logo,
         league: r.league,
         kickoff: r.kickoff,
         market: p.market,
@@ -221,7 +227,7 @@ export async function getPopularMultiples(force = false): Promise<PopularMultipl
   const until = new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString();
   const { data: rows } = await db
     .from("auto_tickets")
-    .select("fixture_id, kickoff, league, home, away, picks")
+    .select("fixture_id, kickoff, league, home, away, home_logo, away_logo, picks")
     .neq("status", "skipped")
     .gte("kickoff", from)
     .lte("kickoff", until)
