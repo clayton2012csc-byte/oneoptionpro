@@ -19,8 +19,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
-import { getTriagemEvolucao } from "@/lib/triagem.functions";
+import { TrendingUp, TrendingDown, Minus, BarChart3, RefreshCw } from "lucide-react";
+import { getTriagemEvolucao, runTriagemGrading } from "@/lib/triagem.functions";
 import { TRIAGEM_LABEL, type TriagemMarket } from "@/lib/triagem-engine";
 
 const AMBER = "#f59e0b";
