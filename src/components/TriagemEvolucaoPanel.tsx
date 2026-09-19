@@ -4,7 +4,7 @@
  * volume de publicados e tendência por mercado.
  */
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   ResponsiveContainer,
@@ -19,8 +19,8 @@ import {
   Tooltip,
   Legend,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, BarChart3 } from "lucide-react";
-import { getTriagemEvolucao } from "@/lib/triagem.functions";
+import { TrendingUp, TrendingDown, Minus, BarChart3, RefreshCw } from "lucide-react";
+import { getTriagemEvolucao, runTriagemGrading } from "@/lib/triagem.functions";
 import { TRIAGEM_LABEL, type TriagemMarket } from "@/lib/triagem-engine";
 
 const AMBER = "#f59e0b";
@@ -45,12 +45,19 @@ function ma<T extends { accuracy: number }>(data: T[], k: number): Array<T & { m
 
 export function TriagemEvolucaoPanel() {
   const fetchEvo = useServerFn(getTriagemEvolucao);
+  const grade = useServerFn(runTriagemGrading);
+  const qc = useQueryClient();
   const [days, setDays] = useState(30);
   const q = useQuery({
     queryKey: ["triagem", "evolucao", days],
     queryFn: () => fetchEvo({ data: { days } }),
-    staleTime: 120_000,
-    refetchInterval: 300_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+  });
+  const check = useMutation({
+    mutationFn: () => grade({ data: undefined as never }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["triagem"] }),
   });
 
   const evo = q.data;
@@ -82,7 +89,22 @@ export function TriagemEvolucaoPanel() {
             </button>
           ))}
         </div>
+        <button
+          onClick={() => check.mutate()}
+          disabled={check.isPending}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider transition hover:border-primary/40 disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${check.isPending ? "animate-spin" : ""}`} />
+          {check.isPending ? "Conferindo…" : "Conferir agora"}
+        </button>
+        {check.data && (
+          <span className="text-[10px] text-muted-foreground">
+            {check.data.graded} palpite{check.data.graded === 1 ? "" : "s"} conferido
+            {check.data.graded === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
+
 
       {q.isLoading && <p className="text-sm text-muted-foreground">Carregando evolução…</p>}
       {q.error && <p className="text-sm text-destructive">Erro: {(q.error as Error).message}</p>}

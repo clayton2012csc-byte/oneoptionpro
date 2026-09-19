@@ -26,6 +26,44 @@ function missingTable(error: { code?: string; message?: string } | null): boolea
   );
 }
 
+/**
+ * O PostgREST devolve no máximo 1000 linhas por consulta — sem paginação
+ * o relatório diário ficava congelado nas primeiras 1000 avaliações.
+ */
+async function fetchAllRows(
+  select: string,
+  apply: (q: any) => any,
+  max = 20000,
+): Promise<{ rows: any[]; missing: boolean }> {
+  const out: any[] = [];
+  const page = 1000;
+  for (let from = 0; from < max; from += page) {
+    const t = await table();
+    const { data, error } = await apply(t.select(select)).range(from, from + page - 1);
+    if (error) {
+      if (missingTable(error)) return { rows: [], missing: true };
+      throw new Error(error.message);
+    }
+    const chunk = data ?? [];
+    out.push(...chunk);
+    if (chunk.length < page) break;
+  }
+  return { rows: out, missing: false };
+}
+
+/** Data do jogo no fuso de São Paulo (YYYY-MM-DD). */
+function spDay(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}
+
 export interface TriagemRow {
   id: string;
   fixture_id: number;
@@ -128,26 +166,17 @@ export async function triagemBoard(): Promise<{ markets: TriagemMarketStat[]; to
   }));
   const byMarket = new Map(base.map((m) => [m.market, m]));
 
-  const t = await table();
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select(
-      "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, status, result_score, created_at, graded_at",
-    )
-    .eq("passed", true)
-    .gte("created_at", since)
-    .order("kickoff", { ascending: true })
-    .limit(4000);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem.sql");
-      return { markets: base, total: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, status, result_score, created_at, graded_at",
+    (q) => q.eq("passed", true).gte("created_at", since).order("kickoff", { ascending: true }),
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem.sql");
+    return { markets: base, total: 0 };
   }
 
-  const rows = (data ?? []) as TriagemRow[];
+  const rows = raw as TriagemRow[];
   for (const row of rows) {
     const m = byMarket.get(row.market_type);
     if (!m) continue;
@@ -191,23 +220,18 @@ const SELECT_ALL =
  * roteamento para o(s) mercado(s) certo(s) confere.
  */
 export async function triagemCertificacao(days = 21, limit = 3000): Promise<TriagemCertification> {
-  const t = await table();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select(SELECT_ALL)
-    .gte("created_at", since)
-    .order("kickoff", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
-      return { total: 0, fixtures: [], routingRate: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    SELECT_ALL,
+    (q) => q.gte("created_at", since).order("kickoff", { ascending: true }),
+    limit,
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+    return { total: 0, fixtures: [], routingRate: 0 };
   }
 
-  const rows = (data ?? []) as TriagemRow[];
+  const rows = raw as TriagemRow[];
   const byFixture = new Map<number, TriagemCertFixture>();
   for (const r of rows) {
     let f = byFixture.get(r.fixture_id);
@@ -268,27 +292,23 @@ export interface TriagemEvolucao {
 
 /** Relatório diário: evolução da Triagem por dia + por mercado. */
 export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
-  const t = await table();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select("id, fixture_id, market_type, passed, status, created_at")
-    .gte("created_at", since)
-    .limit(10000);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
-      return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    "id, fixture_id, market_type, passed, status, created_at, kickoff",
+    (q) => q.gte("created_at", since),
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+    return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
   }
 
-  const rows = (data ?? []) as Array<{
+  const rows = raw as Array<{
     fixture_id: number;
     market_type: TriagemMarket;
     passed: boolean;
     status: string;
     created_at: string;
+    kickoff: string | null;
   }>;
 
   const byDay = new Map<string, TriagemEvolucaoDay>();
@@ -300,7 +320,9 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
   let totalReds = 0;
 
   for (const r of rows) {
-    const date = (r.created_at ?? "").slice(0, 10);
+    // Dia do JOGO (fuso de São Paulo) — o upsert mantém created_at antigo,
+    // então agrupar pela gravação congelava o relatório diário.
+    const date = spDay(r.kickoff) || (r.created_at ?? "").slice(0, 10);
     if (!date) continue;
 
     let day = byDay.get(date);
@@ -390,4 +412,41 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
     totalPublished,
     overallAccuracy: accN ? totalGreens / accN : 0,
   };
+}
+
+// ───────────────────── Conferência de pendentes (backlog) ─────────────────────
+
+/**
+ * Confere as triagens de jogos já encerrados usando o placar JÁ salvo em
+ * auto_tickets (result_snapshot) — zero requisições à API-Football.
+ * Antes, um registro só era conferido se o bilhete do mesmo jogo fosse
+ * conferido na mesma execução, o que deixava pendentes órfãos para sempre.
+ */
+export async function gradeTriagemBacklog(maxFixtures = 400): Promise<number> {
+  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const { rows, missing } = await fetchAllRows("fixture_id", (q) =>
+    q.eq("status", "pending").eq("passed", true).lt("kickoff", cutoff),
+  );
+  if (missing || !rows.length) return 0;
+
+  const ids = [...new Set(rows.map((r) => Number(r.fixture_id)))].slice(0, maxFixtures);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  let done = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const slice = ids.slice(i, i + 100);
+    const { data } = await supabaseAdmin
+      .from("auto_tickets")
+      .select("fixture_id, result_snapshot")
+      .in("fixture_id", slice)
+      .eq("status", "graded");
+    for (const row of data ?? []) {
+      const snap = row.result_snapshot as { home_score?: number; away_score?: number } | null;
+      if (!snap || typeof snap.home_score !== "number" || typeof snap.away_score !== "number") {
+        continue;
+      }
+      done += await gradeTriagemFixture(Number(row.fixture_id), snap.home_score, snap.away_score);
+    }
+  }
+  return done;
 }
