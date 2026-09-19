@@ -265,7 +265,9 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
               market: "scan_snapshot",
               // linha dinâmica de gols escolhida para esta partida
               market_sub_type: scan.goalsSubType ?? null,
-              probability: Math.round((scan.bestProb ?? 0) * 100),
+              // A coluna probability é numeric(6,4) → teto de 99.99. Sem o clamp,
+              // um jogo com 100% derruba o lote inteiro com erro 22003.
+              probability: Math.max(0, Math.min(99.99, Math.round((scan.bestProb ?? 0) * 100))),
               score: 0,
               features: scan as unknown as never,
             });
@@ -302,8 +304,10 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
       const { error: insErr } = await db.from("ai_predictions").insert(scans as never);
       // banco ainda sem a coluna market_sub_type: repete sem o campo para não perder a varredura
       if (insErr) {
+        console.warn("[auto-tickets] scan insert com market_sub_type falhou:", insErr.message);
         const legacy = scans.map(({ market_sub_type: _omit, ...rest }) => rest);
-        await db.from("ai_predictions").insert(legacy as never);
+        const { error: legacyErr } = await db.from("ai_predictions").insert(legacy as never);
+        if (legacyErr) console.warn("[auto-tickets] scan insert legado falhou:", legacyErr.message);
       }
     }
 

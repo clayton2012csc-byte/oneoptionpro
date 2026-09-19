@@ -46,6 +46,12 @@ export function TriagemPanel() {
 
   const markets = q.data?.markets ?? [];
 
+  // Destaque do dia: Placar Exato abre o grid (diferencial de marca da Triagem).
+  const FEATURED: TriagemMarket = "placar_exato";
+  const featured = markets.find((m) => m.market === FEATURED);
+  const rest = markets.filter((m) => m.market !== FEATURED);
+  const ordered = featured ? [featured, ...rest] : markets;
+
   return (
     <div className="px-3 pb-10 pt-4">
       <div className="mb-4 flex items-center gap-2">
@@ -76,16 +82,25 @@ export function TriagemPanel() {
           )}
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {markets.map((m) => {
+            {ordered.map((m) => {
               const n = m.greens + m.reds;
+              const isFeatured = m.market === FEATURED;
               return (
                 <div
                   key={m.market}
-                  className="glass rounded-2xl border border-white/10 overflow-hidden"
+                  className={`glass rounded-2xl border overflow-hidden ${
+                    isFeatured ? "border-primary/60 shadow-[0_0_24px_-6px] shadow-primary/30 sm:col-span-2 xl:col-span-1" : "border-white/10"
+                  }`}
                 >
                   <div className="px-3 py-2.5 border-b border-white/10">
-                    <div className="text-[12px] font-black truncate">
+                    <div className={`${isFeatured ? "text-[13px]" : "text-[12px]"} font-black truncate`}>
+                      {isFeatured && <span className="mr-1.5 text-primary">★</span>}
                       {TRIAGEM_LABEL[m.market as TriagemMarket] ?? m.market}
+                      {isFeatured && (
+                        <span className="ml-1.5 rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-primary border border-primary/30">
+                          Destaque do dia
+                        </span>
+                      )}
                     </div>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
                       Assertividade: {n ? pct(m.accuracy) : "—"} | {m.greens} Greens - {m.reds} Reds

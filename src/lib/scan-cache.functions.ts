@@ -72,7 +72,8 @@ export const saveScanPredictions = createServerFn({ method: "POST" })
       rows.map((p) => ({
         fixture_id: p.fixtureId,
         market: MARKET_KEY,
-        probability: Math.round((p.bestProb ?? 0) * 100),
+        // numeric(6,4) → teto 99.99 (evita erro 22003 quando o jogo tem 100%)
+        probability: Math.max(0, Math.min(99.99, Math.round((p.bestProb ?? 0) * 100))),
         score: 0,
         features: (prev.has(p.fixtureId) ? { ...p, ...prev.get(p.fixtureId) } : p) as unknown as never,
       })),

@@ -53,7 +53,8 @@ export async function saveMatchPrediction(input: {
     .insert({
       fixture_id: input.fixtureId,
       market: input.market,
-      probability: input.probability,
+      // A coluna probability é numeric(6,4) → teto 99.99 (evita erro 22003/100).
+      probability: Math.max(0, Math.min(99.99, input.probability)),
       score: input.score,
       features: input.features,
     })
