@@ -1,8 +1,110 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { ChevronLeft, ChevronRight, ShieldCheck, Scale, Flame } from "lucide-react";
 import { LIVE_STATUSES, FINISHED_STATUSES, type ApiFixture } from "@/lib/api-football.functions";
 import { setSelectedFixture, isDesktopThreeCol } from "@/lib/selected-fixture";
+import { popularMultiples, type PopularMultiple } from "@/lib/multiplas.functions";
+import { makeSlipId, useBetSlip } from "@/lib/bet-slip";
+
+const MULTI_UI: Record<string, { title: string; Icon: typeof ShieldCheck; grad: string; accent: string }> = {
+  baixa: {
+    title: "Múltipla Segura",
+    Icon: ShieldCheck,
+    grad: "from-emerald-700 via-neutral-800 to-neutral-900",
+    accent: "text-emerald-300",
+  },
+  media: {
+    title: "Múltipla Equilibrada",
+    Icon: Scale,
+    grad: "from-amber-700 via-neutral-800 to-neutral-900",
+    accent: "text-amber-300",
+  },
+  alta: {
+    title: "Múltipla Ousada",
+    Icon: Flame,
+    grad: "from-primary/70 via-neutral-800 to-neutral-900",
+    accent: "text-primary",
+  },
+};
+
+/** Card de múltipla no mesmo padrão dos slides de jogos (220x150). */
+function MultipleSlide({ t }: { t: PopularMultiple }) {
+  const ui = MULTI_UI[t.level] ?? MULTI_UI["media"]!;
+  const { Icon } = ui;
+  const items = useBetSlip((s) => s.items);
+  const toggleItem = useBetSlip((s) => s.toggleItem);
+  const setOpen = useBetSlip((s) => s.setOpen);
+
+  const addTicket = () => {
+    for (const leg of t.legs) {
+      const id = makeSlipId(leg.fixtureId, leg.market, leg.selection);
+      if (items.some((i) => i.id === id)) continue;
+      toggleItem({
+        id,
+        fixtureId: leg.fixtureId,
+        home: leg.home,
+        away: leg.away,
+        league: leg.league ?? undefined,
+        time: leg.kickoff,
+        market: leg.market,
+        selection: leg.selection,
+        prob: leg.prob,
+        odd: leg.odd,
+        type: "ia",
+      });
+    }
+    setOpen(true);
+  };
+
+  const logos = t.legs.map((l) => l.homeLogo).filter(Boolean).slice(0, 3) as string[];
+
+  return (
+    <button
+      type="button"
+      onClick={addTicket}
+      className="relative shrink-0 w-[220px] h-[150px] rounded-xl overflow-hidden border border-white/5 hover:border-primary/40 transition group text-left shadow-[var(--shadow-card)]"
+    >
+      <div className={`absolute inset-0 bg-gradient-to-br ${ui.grad}`} />
+      <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-25">
+        {logos.map((src, i) => (
+          <img key={i} src={src} alt="" className="w-16 h-16 object-contain" loading="lazy" />
+        ))}
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+
+      <div className="relative h-full flex flex-col justify-between p-2.5">
+        <div className="flex items-center justify-between">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-white/90 backdrop-blur">
+            <Icon className="w-3 h-3" />
+            <span className="truncate max-w-[130px]">{ui.title}</span>
+          </span>
+          <span className="text-[10px] font-bold text-white/70">{t.legs.length} jogos</span>
+        </div>
+
+        <div className="text-center leading-none">
+          <div className={`text-2xl font-black tabular drop-shadow-lg ${ui.accent}`}>@{t.totalOdd.toFixed(2)}</div>
+          <div className="mt-1 text-[10px] font-bold text-white/70">
+            Confiança {(t.prob * 100).toFixed(1)}%
+          </div>
+        </div>
+
+        <div className="space-y-0.5">
+          {t.legs.slice(0, 2).map((l, i) => (
+            <div key={i} className="truncate text-[10px] font-bold text-white/85">
+              {l.home} × {l.away} · <span className="text-white/60">{l.selection}</span>
+            </div>
+          ))}
+          {t.legs.length > 2 && (
+            <div className="text-[10px] font-bold text-white/50">+{t.legs.length - 2} seleções</div>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
+
 
 
 // Popular league IDs (API-Football) — used to prioritize highlights
