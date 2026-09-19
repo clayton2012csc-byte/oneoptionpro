@@ -527,8 +527,8 @@ function TodosPage() {
       {activeSection === "artilheiros" && <ArtilheirosPanel />}
       {!folder && activeSection !== "artilheiros" && (
         <>
-          <MultiplasPanel />
           <div role="tablist" aria-label="Filtrar jogos" className="flex gap-1.5 overflow-x-auto scrollbar-none px-3 pb-3">
+
             {FILTERS.map((f) => {
               const active = filter === f.id;
               const disabled = filter === "live" ? liveQ.isLoading : q.isLoading;
