@@ -1,29 +1,19 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { RefreshCw, X, FolderPlus, BrainCircuit, Star, Sparkles } from "lucide-react";
+import { RefreshCw, BrainCircuit, Star, Sparkles } from "lucide-react";
 
 import type { ApiTeam, BingaoOdds } from "@/lib/api-football.functions";
 import { memo, useEffect, useRef, useState, useMemo } from "react";
-import { useFavorites, toggleFavorite, FavoriteButton as SharedFavoriteButton } from "@/lib/favorites";
+import { FavoriteButton as SharedFavoriteButton } from "@/lib/favorites";
 
 import { useQueryClient, useIsFetching, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { LIVE_STATUSES, FINISHED_STATUSES, getBingaoOdds, type ApiFixture, getMatchPreview, getFixtureStatistics } from "@/lib/api-football.functions";
 import { setSelectedFixture, isDesktopThreeCol, useSelectedFixture } from "@/lib/selected-fixture";
-import { toggleFixture, usePinnedSections, type SectionId } from "@/lib/pinned-sections";
-import { useActiveSection } from "@/lib/active-section";
+import { usePinnedSections } from "@/lib/pinned-sections";
 import { useMarketFilter } from "@/lib/market-filter";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { autoTicketStatus } from "@/lib/auto-tickets.functions";
-import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
 import { AiPickBadges } from "@/components/AiPickBadges";
-import { toast } from "sonner";
-
-const PIN_SECTIONS: { id: SectionId; icon: string; label: string }[] = [
-  { id: "bingao", icon: "🎯", label: "Bingão" },
-  { id: "loteca", icon: "🎟️", label: "Lotéca IA" },
-  { id: "beta", icon: "🧪", label: "Beta" },
-  { id: "alfha", icon: "⚡", label: "Alfha" },
-];
 
 
 function statusLabel(f: ApiFixture) {
@@ -198,7 +188,6 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
             <NotificationButton fixtureId={fixture.fixture.id} />
           </div>
           <div className="flex items-center gap-1 bg-white/5 px-2 py-1.5 rounded-xl border border-white/5 shadow-inner">
-            <PinShortcuts fixtureId={fixture.fixture.id} />
             <RefreshButton />
           </div>
         </div>
@@ -372,47 +361,6 @@ function TeamRow({ team, dim }: { team: ApiTeam; dim: boolean }) {
   );
 }
 
-function PinShortcuts({ fixtureId }: { fixtureId: number }) {
-  const pinned = usePinnedSections();
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const anyPinned = PIN_SECTIONS.some((s) => pinned[s.id].includes(fixtureId));
-  const buttons = (
-    <>
-      {PIN_SECTIONS.map((s) => {
-        const active = pinned[s.id].includes(fixtureId);
-        return (
-          <button
-            key={s.id}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              toggleFixture(s.id, fixtureId);
-            }}
-            title={active ? `Remover de ${s.label}` : `Importar para ${s.label}`}
-            className={`w-8 h-8 rounded-xl flex items-center justify-center text-sm border transition-all duration-300 transform active:scale-90 ${
-              active
-                ? "bg-primary text-primary-foreground border-primary shadow-[0_0_10px_rgba(var(--primary),0.3)] scale-105"
-                : "bg-black/30 border-white/5 text-white/40 hover:text-white hover:bg-black/50 hover:border-white/20"
-            }`}
-          >
-            {s.icon}
-          </button>
-        );
-      })}
-    </>
-  );
-  return (
-    <>
-      <div className="flex items-center gap-0.5">{buttons}</div>
-    </>
-  );
-}
-
-
-function FolderActions({ fixtureId }: { fixtureId: number }) {
-  // Removido conforme solicitado para limpar o card
-  return null;
-}
 function ProbabilityBadge({ fixture, isSelected }: { fixture: ApiFixture; isSelected?: boolean }) {
   const { market, predictions, persistedPredictions } = useMarketFilter();
   const pinned = usePinnedSections();
