@@ -205,8 +205,12 @@ function candidateLegs(rows: TicketRow[]): MultipleLeg[] {
 
 /** Escolhe N jogos distintos garantindo odd total >= alvo com a maior probabilidade. */
 function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: number): MultipleLeg[] | null {
-  const cands = pool.filter((l) => l.prob >= minProb).slice(0, 120);
+  const ok = pool.filter((l) => l.prob >= minProb);
+  // mistura os mais prováveis com os de odd mais alta, para alcançar o alvo do nível
+  const byOdd = [...ok].sort((a, b) => b.odd - a.odd).slice(0, 60);
+  const cands = [...new Set([...ok.slice(0, 120), ...byOdd])];
   if (cands.length < games) return null;
+
 
   const cost = (legs: MultipleLeg[]) => {
     const odd = legs.reduce((s, l) => s * l.odd, 1);
