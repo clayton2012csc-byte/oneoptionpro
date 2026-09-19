@@ -297,9 +297,10 @@ export function MultiplasPanel() {
           </button>
         </div>
           <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-           Três combinações diárias montadas somente com os mercados analisados na aba Previsões.
-           Toque em uma seleção ou monte o bilhete completo.
+           Cada jogo entra com odd mínima de 5, combinando os mercados do próprio jogo (placar exato,
+           margem de vitória, resultado, escanteios). Baixa ≈ 5x · Média ≈ 50x · Alta ≈ 600x.
         </p>
+
         {q.data?.builtAt && tickets.length > 0 && (
           <p className="text-[10px] text-muted-foreground mt-2">
             Montado em {new Date(q.data.builtAt).toLocaleString("pt-BR")}.
