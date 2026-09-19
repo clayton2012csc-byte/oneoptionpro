@@ -90,16 +90,36 @@ function MultipleSlide({ t }: { t: PopularMultiple }) {
           </div>
         </div>
 
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {t.legs.slice(0, 2).map((l, i) => (
-            <div key={i} className="truncate text-[10px] font-bold text-white/85">
-              {l.home} × {l.away} · <span className="text-white/60">{l.selection}</span>
+            <div key={i} className="flex items-center gap-1.5">
+              <span className="flex items-center -space-x-1 shrink-0">
+                {l.homeLogo && (
+                  <img src={l.homeLogo} alt="" className="w-4 h-4 rounded-full bg-black/40 object-contain ring-1 ring-white/20" loading="lazy" />
+                )}
+                {l.awayLogo && (
+                  <img src={l.awayLogo} alt="" className="w-4 h-4 rounded-full bg-black/40 object-contain ring-1 ring-white/20" loading="lazy" />
+                )}
+              </span>
+              <span className="truncate text-[10px] font-bold text-white/85">
+                {l.home} × {l.away} · <span className="text-white/60">{l.selection}</span>
+              </span>
             </div>
           ))}
           {t.legs.length > 2 && (
-            <div className="text-[10px] font-bold text-white/50">+{t.legs.length - 2} seleções</div>
+            <div className="flex items-center gap-1.5">
+              <span className="flex items-center -space-x-1 shrink-0">
+                {t.legs.slice(2).map((l, i) =>
+                  l.homeLogo ? (
+                    <img key={i} src={l.homeLogo} alt="" className="w-4 h-4 rounded-full bg-black/40 object-contain ring-1 ring-white/20" loading="lazy" />
+                  ) : null,
+                )}
+              </span>
+              <span className="text-[10px] font-bold text-white/50">+{t.legs.length - 2} seleções</span>
+            </div>
           )}
         </div>
+
       </div>
     </button>
   );
