@@ -153,26 +153,17 @@ export async function triagemBoard(): Promise<{ markets: TriagemMarketStat[]; to
   }));
   const byMarket = new Map(base.map((m) => [m.market, m]));
 
-  const t = await table();
   const since = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select(
-      "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, status, result_score, created_at, graded_at",
-    )
-    .eq("passed", true)
-    .gte("created_at", since)
-    .order("kickoff", { ascending: true })
-    .limit(4000);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem.sql");
-      return { markets: base, total: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    "id, fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, status, result_score, created_at, graded_at",
+    (q) => q.eq("passed", true).gte("created_at", since).order("kickoff", { ascending: true }),
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem.sql");
+    return { markets: base, total: 0 };
   }
 
-  const rows = (data ?? []) as TriagemRow[];
+  const rows = raw as TriagemRow[];
   for (const row of rows) {
     const m = byMarket.get(row.market_type);
     if (!m) continue;
