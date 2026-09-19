@@ -279,27 +279,23 @@ export interface TriagemEvolucao {
 
 /** Relatório diário: evolução da Triagem por dia + por mercado. */
 export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
-  const t = await table();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select("id, fixture_id, market_type, passed, status, created_at")
-    .gte("created_at", since)
-    .limit(10000);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
-      return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    "id, fixture_id, market_type, passed, status, created_at, kickoff",
+    (q) => q.gte("created_at", since),
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+    return { days: [], markets: [], totalAnalyzed: 0, totalPublished: 0, overallAccuracy: 0 };
   }
 
-  const rows = (data ?? []) as Array<{
+  const rows = raw as Array<{
     fixture_id: number;
     market_type: TriagemMarket;
     passed: boolean;
     status: string;
     created_at: string;
+    kickoff: string | null;
   }>;
 
   const byDay = new Map<string, TriagemEvolucaoDay>();
