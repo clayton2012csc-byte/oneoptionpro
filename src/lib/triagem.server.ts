@@ -207,23 +207,18 @@ const SELECT_ALL =
  * roteamento para o(s) mercado(s) certo(s) confere.
  */
 export async function triagemCertificacao(days = 21, limit = 3000): Promise<TriagemCertification> {
-  const t = await table();
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await t
-    .select(SELECT_ALL)
-    .gte("created_at", since)
-    .order("kickoff", { ascending: true })
-    .limit(limit);
-
-  if (error) {
-    if (missingTable(error)) {
-      console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
-      return { total: 0, fixtures: [], routingRate: 0 };
-    }
-    throw new Error(error.message);
+  const { rows: raw, missing } = await fetchAllRows(
+    SELECT_ALL,
+    (q) => q.gte("created_at", since).order("kickoff", { ascending: true }),
+    limit,
+  );
+  if (missing) {
+    console.warn("[triagem] tabela ausente; execute supabase/triagem-certificacao.sql");
+    return { total: 0, fixtures: [], routingRate: 0 };
   }
 
-  const rows = (data ?? []) as TriagemRow[];
+  const rows = raw as TriagemRow[];
   const byFixture = new Map<number, TriagemCertFixture>();
   for (const r of rows) {
     let f = byFixture.get(r.fixture_id);
