@@ -181,18 +181,27 @@ function fixtureLegs(r: TicketRow): MultipleLeg[] {
       Number(isHighOdd(y.market)) - Number(isHighOdd(x.market)) ||
       x.odd - y.odd,
   );
-  return combos.slice(0, 2);
+  // guarda a melhor opção de cada faixa de odd (5-7, 7-10, 10-14)
+  const bands: [number, number][] = [
+    [MIN_LEG_ODD, 7],
+    [7, 10],
+    [10, MAX_LEG_ODD],
+  ];
+  const out: MultipleLeg[] = [];
+  for (const [lo, hi] of bands) {
+    const pick = combos.find((c) => c.odd >= lo && c.odd < hi);
+    if (pick) out.push(pick);
+  }
+  return out;
 }
 
-/** Uma perna por jogo (a melhor), ordenada pela chance de acerto. */
+/** Opções por jogo (uma por faixa de odd), ordenadas pela chance de acerto. */
 function candidateLegs(rows: TicketRow[]): MultipleLeg[] {
   const out: MultipleLeg[] = [];
-  for (const r of rows) {
-    const best = fixtureLegs(r)[0];
-    if (best) out.push(best);
-  }
+  for (const r of rows) out.push(...fixtureLegs(r));
   return out.sort((a, b) => b.prob - a.prob);
 }
+
 
 /** Escolhe N jogos distintos garantindo odd total >= alvo com a maior probabilidade. */
 function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: number): MultipleLeg[] | null {
