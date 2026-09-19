@@ -215,9 +215,12 @@ function bestCombo(pool: MultipleLeg[], target: number, games: number, minProb: 
   const cost = (legs: MultipleLeg[]) => {
     const odd = legs.reduce((s, l) => s * l.odd, 1);
     const prob = legs.reduce((s, l) => s * l.prob, 1);
-    const falta = odd < target ? (target - odd) / target : 0;
-    return falta * 10 - prob;
+    const d = Math.log(odd) - Math.log(target);
+    // ficar abaixo do alvo pesa mais que passar dele
+    const dist = d < 0 ? -d * 6 : d * 2;
+    return dist - prob * 3;
   };
+
 
   let beam: MultipleLeg[][] = cands.slice(0, 60).map((l) => [l]);
   for (let depth = 1; depth < games; depth++) {
