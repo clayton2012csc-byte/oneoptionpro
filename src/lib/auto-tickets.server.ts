@@ -347,8 +347,9 @@ async function persistScanSnapshots(rows: Record<string, unknown>[]): Promise<nu
   if (!rows.length) return 0;
   const db = await admin();
   let saved = 0;
-  for (let i = 0; i < rows.length; i += SNAPSHOT_CHUNK) {
-    const chunk = rows.slice(i, i + SNAPSHOT_CHUNK);
+  const safe = rows.map((r) => ({ ...r, probability: clampPct(r["probability"]), score: clampPct(r["score"]) }));
+  for (let i = 0; i < safe.length; i += SNAPSHOT_CHUNK) {
+    const chunk = safe.slice(i, i + SNAPSHOT_CHUNK);
     const ids = chunk.map((s) => Number(s["fixture_id"]));
     try {
       await db.from("ai_predictions").delete().eq("market", "scan_snapshot").in("fixture_id", ids);
