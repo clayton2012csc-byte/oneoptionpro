@@ -413,3 +413,40 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
     overallAccuracy: accN ? totalGreens / accN : 0,
   };
 }
+
+// ───────────────────── Conferência de pendentes (backlog) ─────────────────────
+
+/**
+ * Confere as triagens de jogos já encerrados usando o placar JÁ salvo em
+ * auto_tickets (result_snapshot) — zero requisições à API-Football.
+ * Antes, um registro só era conferido se o bilhete do mesmo jogo fosse
+ * conferido na mesma execução, o que deixava pendentes órfãos para sempre.
+ */
+export async function gradeTriagemBacklog(maxFixtures = 400): Promise<number> {
+  const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const { rows, missing } = await fetchAllRows("fixture_id", (q) =>
+    q.eq("status", "pending").eq("passed", true).lt("kickoff", cutoff),
+  );
+  if (missing || !rows.length) return 0;
+
+  const ids = [...new Set(rows.map((r) => Number(r.fixture_id)))].slice(0, maxFixtures);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  let done = 0;
+  for (let i = 0; i < ids.length; i += 100) {
+    const slice = ids.slice(i, i + 100);
+    const { data } = await supabaseAdmin
+      .from("auto_tickets")
+      .select("fixture_id, result_snapshot")
+      .in("fixture_id", slice)
+      .eq("status", "graded");
+    for (const row of data ?? []) {
+      const snap = row.result_snapshot as { home_score?: number; away_score?: number } | null;
+      if (!snap || typeof snap.home_score !== "number" || typeof snap.away_score !== "number") {
+        continue;
+      }
+      done += await gradeTriagemFixture(Number(row.fixture_id), snap.home_score, snap.away_score);
+    }
+  }
+  return done;
+}
