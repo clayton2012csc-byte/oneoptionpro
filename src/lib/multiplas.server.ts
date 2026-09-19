@@ -180,18 +180,27 @@ async function applyResults(snapshot: PopularMultiplesSnapshot): Promise<Popular
   const db = await admin();
   const { data } = await db
     .from("auto_tickets")
-    .select("fixture_id, status, picks")
+    .select("fixture_id, status, picks, home_logo, away_logo")
     .in("fixture_id", ids);
 
   const graded = new Map<number, { market: string; selection: string; status?: string }[]>();
-  for (const r of (data ?? []) as unknown as TicketRow[] & { status: string }[]) {
-    const row = r as unknown as { fixture_id: number; status: string; picks: TicketRow["picks"] };
+  const logos = new Map<number, { home: string | null; away: string | null }>();
+  for (const r of data ?? []) {
+    const row = r as unknown as {
+      fixture_id: number;
+      status: string;
+      picks: TicketRow["picks"];
+      home_logo: string | null;
+      away_logo: string | null;
+    };
+    logos.set(Number(row.fixture_id), { home: row.home_logo, away: row.away_logo });
     if (row.status !== "graded") continue;
     graded.set(
       Number(row.fixture_id),
       (row.picks ?? []) as unknown as { market: string; selection: string; status?: string }[],
     );
   }
+
 
   for (const t of snapshot.tickets) {
     for (const leg of t.legs) {
