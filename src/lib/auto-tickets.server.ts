@@ -347,7 +347,11 @@ async function persistScanSnapshots(rows: Record<string, unknown>[]): Promise<nu
   if (!rows.length) return 0;
   const db = await admin();
   let saved = 0;
-  const safe = rows.map((r) => ({ ...r, probability: clampPct(r["probability"]), score: clampPct(r["score"]) }));
+  const safe: Record<string, unknown>[] = rows.map((r) => ({
+    ...r,
+    probability: clampPct(r["probability"]),
+    score: clampPct(r["score"]),
+  }));
   for (let i = 0; i < safe.length; i += SNAPSHOT_CHUNK) {
     const chunk = safe.slice(i, i + SNAPSHOT_CHUNK);
     const ids = chunk.map((s) => Number(s["fixture_id"]));
