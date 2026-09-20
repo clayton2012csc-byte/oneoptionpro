@@ -278,8 +278,8 @@ function LiveHighlightCards({ fixtureId, isLive, homeName, awayName }: { fixture
   const q = useQuery({
     queryKey: ["stats", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 60_000 : false,
-    staleTime: isLive ? 0 : 6 * 60 * 60_000,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
   });
   const data = q.data as ApiTeamStats[] | undefined;
   if (q.isLoading) return <ShimmerRows rows={2} height="h-16" />;
