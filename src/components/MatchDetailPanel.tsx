@@ -46,7 +46,7 @@ export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: n
     queryFn: () => fetchFixture({ data: { id: fixtureId } }),
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
-      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 20_000 : false;
+      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
     },
   });
 
