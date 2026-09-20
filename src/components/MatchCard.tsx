@@ -90,6 +90,33 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
   });
   const iaPronta = !!autoStatus?.ids?.includes(fixture.fixture.id);
 
+  // Pré-carregamento: o jogo já vem pronto da lista, então alimentamos o cache
+  // da página do jogo sem gastar nenhuma requisição extra na API.
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!isNearScreen) return;
+    if (qc.getQueryData(["fixture", fixture.fixture.id]) === undefined) {
+      qc.setQueryData(["fixture", fixture.fixture.id], fixture);
+    }
+  }, [isNearScreen, fixture, qc]);
+
+  // Ao passar o dedo/mouse no card já buscamos a prévia do confronto,
+  // para a página abrir com as informações completas.
+  const fetchPreviewWarm = useServerFn(getMatchPreview);
+  const warmedRef = useRef(false);
+  const prewarm = () => {
+    if (warmedRef.current || st.finished) return;
+    warmedRef.current = true;
+    const homeId = fixture.teams.home.id;
+    const awayId = fixture.teams.away.id;
+    void qc.prefetchQuery({
+      queryKey: ["preview", homeId, awayId],
+      queryFn: () => fetchPreviewWarm({ data: { homeId, awayId, last: 5 } }),
+      staleTime: 30 * 60_000,
+    });
+  };
+
+
 
   return (
     <Link
