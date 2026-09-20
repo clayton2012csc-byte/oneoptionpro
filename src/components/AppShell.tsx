@@ -310,6 +310,7 @@ function MobileNav() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  useRobotAutopilot();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
