@@ -16,6 +16,21 @@ export const DEFAULT_BET_STAKE = 0.5;
 export type AccountMode = "demo" | "real";
 export type DemoBetStatus = "pending" | "green" | "red" | "void";
 
+export type DemoBetKind = "simples" | "multipla";
+
+export interface DemoLeg {
+  fixtureId: number;
+  home: string;
+  away: string;
+  league?: string | null;
+  kickoff?: string;
+  market: string;
+  selection: string;
+  odd: number;
+  prob?: number;
+  status?: "green" | "red" | null;
+}
+
 export interface DemoBet {
   id: string;
   createdAt: string;
@@ -33,6 +48,11 @@ export interface DemoBet {
   stake: number;
   status: DemoBetStatus;
   settledAt?: string;
+  /** simples = 1 seleção · múltipla = várias seleções no mesmo bilhete */
+  kind?: DemoBetKind;
+  /** apostado automaticamente pelo robô */
+  auto?: boolean;
+  legs?: DemoLeg[];
 }
 
 export interface DemoBetInput {
@@ -48,15 +68,32 @@ export interface DemoBetInput {
   prob?: number;
 }
 
+/** Bilhete montado pelo robô (simples ou múltipla). */
+export interface DemoTicketInput {
+  id: string;
+  source: string;
+  kind: DemoBetKind;
+  legs: DemoLeg[];
+  odd: number;
+  prob?: number;
+}
+
 interface DemoState {
   mode: AccountMode;
   balance: number;
   bets: DemoBet[];
   stake: number;
+  /** robô apostando sozinho na conta demo */
+  autopilot: boolean;
   setMode: (mode: AccountMode) => void;
   setStake: (stake: number) => void;
+  setAutopilot: (on: boolean) => void;
   /** registra apostas de R$ 0,50 cada; devolve quantas entraram */
   placeBets: (inputs: DemoBetInput[]) => number;
+  /** registra bilhetes do robô (simples e múltiplas); devolve quantos entraram */
+  placeTickets: (tickets: DemoTicketInput[]) => number;
+  /** liquida em lote os bilhetes já conferidos pelo robô */
+  applyResults: (results: { id: string; status: "green" | "red" }[]) => number;
   settle: (id: string, status: DemoBetStatus) => void;
   removeBet: (id: string) => void;
   reset: () => void;
