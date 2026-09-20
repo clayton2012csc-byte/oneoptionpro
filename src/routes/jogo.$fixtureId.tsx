@@ -368,7 +368,8 @@ function ResumoTab({ fixtureId, home, isLive, fixture }: { fixtureId: number; ho
   const q = useQuery({
     queryKey: ["events", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 60_000 : false,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
     enabled: !isUpcoming,
   });
 
