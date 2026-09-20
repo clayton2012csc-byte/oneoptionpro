@@ -26,7 +26,7 @@ function PlacarPage() {
   const q = useQuery({
     queryKey: ["fixtures", "date", date],
     queryFn: () => fetchFixtures({ data: { date } }),
-    staleTime: 60_000,
+    staleTime: 10 * 60_000,
     select: (data) => data.filter((f) => FINISHED_STATUSES.has(f.fixture.status.short)),
   });
 
