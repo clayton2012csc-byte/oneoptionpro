@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Check, X, Trash2, RotateCcw, FlaskConical } from "lucide-react";
+import { Check, X, Trash2, RotateCcw, FlaskConical, Bot, Play, Pause } from "lucide-react";
 import { toast } from "sonner";
 import {
   useDemoAccount,
@@ -8,6 +8,7 @@ import {
   DEMO_START_BALANCE,
   type DemoBet,
 } from "@/lib/demo-account";
+import { useRobotAutopilot } from "@/lib/robot-autopilot";
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: string }) {
   return (
