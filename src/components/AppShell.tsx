@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SECTIONS } from "@/lib/sections-config";
 import { BetSlipDrawer } from "./BetSlipDrawer";
 import { AccountModeSwitch } from "./AccountModeSwitch";
+import { useRobotAutopilot } from "@/lib/robot-autopilot";
 
 function SectionMenu() {
   const active = useActiveSection();
@@ -310,6 +311,7 @@ function MobileNav() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
+  useRobotAutopilot();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
