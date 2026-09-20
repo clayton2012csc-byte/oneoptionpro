@@ -156,10 +156,94 @@ async function apiGet(path: string, params: Record<string, string | number | und
   return cached?.data ?? (await readSnapshot(cacheKey));
 }
 
+/** Monta um ApiFixture a partir de uma linha do auto_tickets (fallback offline). */
+function fixtureFromTicketRow(row: {
+  fixture_id: number;
+  kickoff: string;
+  league: string | null;
+  home: string;
+  away: string;
+  home_logo?: string | null;
+  away_logo?: string | null;
+}): ApiFixture | null {
+  try {
+    const kickoff = row.kickoff || new Date().toISOString();
+    const ts = Math.floor(new Date(kickoff).getTime() / 1000);
+    const past = ts * 1000 <= Date.now();
+    return {
+      fixture: {
+        id: row.fixture_id,
+        referee: null,
+        timezone: TZ,
+        date: kickoff,
+        timestamp: ts,
+        status: past
+          ? { long: "Match Finished", short: "FT", elapsed: null }
+          : { long: "Not Started", short: "NS", elapsed: null },
+        venue: { id: null, name: null, city: null },
+      },
+      league: {
+        id: 0,
+        name: row.league || "Liga local",
+        country: "",
+        logo: "",
+        flag: null,
+        season: new Date(kickoff).getUTCFullYear(),
+        round: "",
+      },
+      teams: {
+        home: { id: -(row.fixture_id), name: row.home, logo: row.home_logo || "" },
+        away: { id: -(row.fixture_id) - 1, name: row.away, logo: row.away_logo || "" },
+      },
+      goals: { home: null, away: null },
+      score: {
+        halftime: { home: null, away: null },
+        fulltime: { home: null, away: null },
+        extratime: { home: null, away: null },
+        penalty: { home: null, away: null },
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Jogos salvos no banco para uma data (grade offline: nunca fica vazia). */
+async function localFixturesForDay(dateStr: string): Promise<ApiFixture[]> {
+  try {
+    const from = new Date(`${dateStr}T00:00:00-03:00`);
+    const until = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+    const { data } = await supabaseAdmin
+      .from("auto_tickets")
+      .select("fixture_id, kickoff, league, home, away, home_logo, away_logo")
+      .neq("status", "skipped")
+      .gte("kickoff", from.toISOString())
+      .lt("kickoff", until.toISOString())
+      .limit(800);
+    return (data ?? [])
+      .map(fixtureFromTicketRow)
+      .filter((f): f is ApiFixture => f !== null);
+  } catch {
+    return [];
+  }
+}
+
+/** Mescla os jogos da API com os salvos no banco (sem duplicar por fixture_id). */
+function mergeFixtures(api: ApiFixture[], local: ApiFixture[]): ApiFixture[] {
+  if (!local.length) return api;
+  const seen = new Set(api.map((f) => f.fixture.id));
+  const extras = local.filter((f) => !seen.has(f.fixture.id));
+  if (!extras.length) return api;
+  return [...api, ...extras].sort((a, b) => a.fixture.timestamp - b.fixture.timestamp);
+}
+
 export const getFixturesByDate = createServerFn({ method: "GET" })
   .inputValidator((d: { date: string }) => d)
   .handler(async ({ data }) => {
-    return (await apiGet("/fixtures", { date: data.date, timezone: TZ })) as ApiFixture[];
+    const api = (await apiGet("/fixtures", { date: data.date, timezone: TZ })) as ApiFixture[];
+    // Se a API/cache não trouxe nada (cota zerada / sem snapshot), usa o que está salvo no banco.
+    if (api.length === 0) return await localFixturesForDay(data.date);
+    return mergeFixtures(api, await localFixturesForDay(data.date));
   });
 
 export const getLiveFixtures = createServerFn({ method: "GET" }).handler(async () => {
@@ -169,7 +253,24 @@ export const getLiveFixtures = createServerFn({ method: "GET" }).handler(async (
 export const getNextFixturesToScan = createServerFn({ method: "GET" })
   .inputValidator((d: { count?: number }) => d)
   .handler(async ({ data }) => {
-    return (await apiGet("/fixtures", { next: data.count ?? 50, timezone: TZ })) as ApiFixture[];
+    const api = (await apiGet("/fixtures", { next: data.count ?? 50, timezone: TZ })) as ApiFixture[];
+    if (api.length > 0) return api;
+    // Fallback offline: jogos das próximas 24h a partir do banco.
+    try {
+      const from = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      const until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { data: rows } = await supabaseAdmin
+        .from("auto_tickets")
+        .select("fixture_id, kickoff, league, home, away, home_logo, away_logo")
+        .neq("status", "skipped")
+        .gte("kickoff", from)
+        .lte("kickoff", until)
+        .order("kickoff", { ascending: true })
+        .limit(800);
+      return (rows ?? []).map(fixtureFromTicketRow).filter((f): f is ApiFixture => f !== null);
+    } catch {
+      return [];
+    }
   });
 
 export interface ApiStatus {
@@ -270,8 +371,8 @@ async function fixtureFromLocal(id: number): Promise<ApiFixture | null> {
       round: "",
     },
     teams: {
-      home: { id: -1, name: meta.home, logo: "" },
-      away: { id: -2, name: meta.away, logo: "" },
+      home: { id: -id, name: meta.home, logo: "" },
+      away: { id: -(id) - 1, name: meta.away, logo: "" },
     },
     goals: { home: null, away: null },
     score: {
@@ -349,8 +450,8 @@ function statsFromPicks(meta: LocalFixtureMeta): ApiTeamStats[] | null {
     awayStats.push({ type: "Margem de vitória (%)", value: homeMarginSel ? Math.round((1 - pMargem) * 100) : Math.round(pMargem * 100) });
   }
 
-  const home: ApiTeamStats = { team: { id: -1, name: meta.home, logo: "" }, statistics: homeStats };
-  const away: ApiTeamStats = { team: { id: -2, name: meta.away, logo: "" }, statistics: awayStats };
+  const home: ApiTeamStats = { team: { id: -meta.fixtureId, name: meta.home, logo: "" }, statistics: homeStats };
+  const away: ApiTeamStats = { team: { id: -(meta.fixtureId) - 1, name: meta.away, logo: "" }, statistics: awayStats };
   return [home, away];
 }
 
