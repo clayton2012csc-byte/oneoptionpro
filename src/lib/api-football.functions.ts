@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { spendApiCall, readSnapshot, writeSnapshot, noteRemaining } from "./api-football-guard.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://v3.football.api-sports.io";
 const TZ = "America/Sao_Paulo";
@@ -121,6 +122,14 @@ async function apiGet(path: string, params: Record<string, string | number | und
         return cached?.data ?? (await readSnapshot(cacheKey));
       }
       const data = (Array.isArray(json.response) ? json.response : []) as unknown[];
+
+      // Nunca grava resultado vazio no cache (nem no DB nem no snapshot): isso
+      // gerava milhares de entradas `data=[]` e a grade de estatísticas sumia.
+      if (Array.isArray(data) && data.length === 0) {
+        console.warn(`[api-football] ${path} retornou vazio — não será cacheadol.`);
+        return data;
+      }
+
       cache.set(cacheKey, { at: Date.now(), data });
       
       // Save to database cache asynchronously
@@ -177,7 +186,10 @@ export const getFixture = createServerFn({ method: "GET" })
   .inputValidator((d: { id: number }) => d)
   .handler(async ({ data }) => {
     const arr = (await apiGet("/fixtures", { id: data.id, timezone: TZ })) as ApiFixture[];
-    return arr[0] ?? null;
+    if (arr[0]) return arr[0];
+
+    // Fallback local: monta o jogo a partir do banco quando a API não retorna nada.
+    return fixtureFromLocal(data.id);
   });
 
 export const getFixtureEvents = createServerFn({ method: "GET" })
@@ -186,10 +198,180 @@ export const getFixtureEvents = createServerFn({ method: "GET" })
     return (await apiGet("/fixtures/events", { fixture: data.id })) as ApiEvent[];
   });
 
+/** Valores numéricos das features/previsões locais de um fixture (fallback quando a API não responde). */
+interface LocalFixtureMeta {
+  fixtureId: number;
+  home: string;
+  away: string;
+  league: string | null;
+  kickoff: string;
+  features?: Record<string, any> | null;
+}
+
+/** Lê os dados locais de um fixture: auto_tickets (nomes/horário) + ai_predictions (features com odds/palpites). */
+async function loadLocalFixtureMeta(id: number): Promise<LocalFixtureMeta | null> {
+  try {
+    const { data: rows } = await supabaseAdmin
+      .from("auto_tickets")
+      .select("fixture_id, kickoff, league, home, away")
+      .eq("fixture_id", id)
+      .limit(1);
+
+    const row = rows?.[0];
+    if (!row) return null;
+
+    const { data: predRows } = await supabaseAdmin
+      .from("ai_predictions")
+      .select("features")
+      .eq("fixture_id", id)
+      .limit(1);
+
+    return {
+      fixtureId: id,
+      home: row.home,
+      away: row.away,
+      league: row.league ?? null,
+      kickoff: row.kickoff ?? new Date().toISOString(),
+      features: (predRows?.[0]?.features as Record<string, any> | null) ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Monta um ApiFixture mínimo a partir dos dados locais (evita a tela "Jogo não encontrado"). */
+async function fixtureFromLocal(id: number): Promise<ApiFixture | null> {
+  const meta = await loadLocalFixtureMeta(id);
+  if (!meta) return null;
+
+  const kickoff = meta.kickoff || new Date().toISOString();
+  const ts = Math.floor(new Date(kickoff).getTime() / 1000);
+  const past = ts * 1000 <= Date.now();
+
+  return {
+    fixture: {
+      id,
+      referee: null,
+      timezone: TZ,
+      date: kickoff,
+      timestamp: ts,
+      status: past
+        ? { long: "Match Finished", short: "FT", elapsed: null }
+        : { long: "Not Started", short: "NS", elapsed: null },
+      venue: { id: null, name: null, city: null },
+    },
+    league: {
+      id: 0,
+      name: meta.league ?? "Liga local",
+      country: "",
+      logo: "",
+      flag: null,
+      season: past ? new Date(kickoff).getUTCFullYear() - 1 : new Date(kickoff).getUTCFullYear(),
+      round: "",
+    },
+    teams: {
+      home: { id: -1, name: meta.home, logo: "" },
+      away: { id: -2, name: meta.away, logo: "" },
+    },
+    goals: { home: null, away: null },
+    score: {
+      halftime: { home: null, away: null },
+      fulltime: { home: null, away: null },
+      extratime: { home: null, away: null },
+      penalty: { home: null, away: null },
+    },
+  };
+}
+
+/** Extrai o número da linha de um pick de mercado (ex: "Mais de 9.5 escanteios" → 9.5). */
+function lineOf(selection: string | undefined): number | null {
+  if (!selection) return null;
+  const m = selection.match(/(\d+(?:\.\d+)?)/);
+  return m ? Number(m[1]) : null;
+}
+
+/** Converte os picks salvos (features.picks) em estatísticas por time. */
+function statsFromPicks(meta: LocalFixtureMeta): ApiTeamStats[] | null {
+  const picks: { market?: string; selection?: string; prob?: number }[] = Array.isArray(meta.features?.picks) ? meta.features!.picks : [];
+  const pickOf = (market: string) => picks.find((p) => p.market === market);
+  const probOf = (p: { prob?: number } | undefined, fallback: number) => (p && typeof p.prob === "number" ? p.prob : fallback);
+
+  const lambdaHome = typeof meta.features?.lambdaHome === "number" ? meta.features.lambdaHome : null;
+  const lambdaAway = typeof meta.features?.lambdaAway === "number" ? meta.features.lambdaAway : null;
+  const cornersTotal =
+    typeof meta.features?.lambdaCornersTotal === "number"
+      ? meta.features.lambdaCornersTotal
+      : typeof meta.features?.expectedCorners === "number"
+        ? meta.features.expectedCorners
+        : lineOf(pickOf("Escanteios")?.selection);
+
+  const homeStats: { type: string; value: number | string | null }[] = [];
+  const awayStats: { type: string; value: number | string | null }[] = [];
+
+  if (lambdaHome != null && lambdaAway != null) {
+    homeStats.push({ type: "expected_goals", value: lambdaHome });
+    awayStats.push({ type: "expected_goals", value: lambdaAway });
+  }
+
+  const cornersSplit = cornersTotal != null ? Number(cornersTotal) / 2 : null;
+  homeStats.push({ type: "Corner Kicks", value: cornersSplit != null ? Math.round(cornersSplit) : 5 });
+  awayStats.push({ type: "Corner Kicks", value: cornersSplit != null ? Math.round(cornersSplit) : 5 });
+
+  const gols = pickOf("Gols Dinâmico");
+  if (!lambdaHome || !lambdaAway) {
+    const totalGoalsLine = lineOf(gols?.selection);
+    if (totalGoalsLine != null) {
+      homeStats.push({ type: "expected_goals", value: Math.min(2, Number(totalGoalsLine) / 2) });
+      awayStats.push({ type: "expected_goals", value: Math.min(2, Number(totalGoalsLine) / 2) });
+    }
+  }
+
+  const btts = pickOf("Ambas Marcam");
+  if (btts) {
+    const pBtts = probOf(btts, 0.5);
+    homeStats.push({ type: "Ambas marcam (%)", value: Math.round(pBtts * 100) });
+    awayStats.push({ type: "Ambas marcam (%)", value: Math.round(pBtts * 100) });
+  }
+
+  const cards = pickOf("Cartões");
+  const cardsLine = lineOf(cards?.selection);
+  if (cardsLine != null) {
+    const split = Number(cardsLine) / 2;
+    homeStats.push({ type: "Yellow Cards", value: Math.round(split) });
+    awayStats.push({ type: "Yellow Cards", value: Math.round(split) });
+  }
+
+  const margem = pickOf("Margem de Vitória");
+  if (margem) {
+    const pMargem = probOf(margem, 0.5);
+    const homeMarginSel = /(?:casa|home)/i.test(margem.selection ?? "");
+    homeStats.push({ type: "Margem de vitória (%)", value: homeMarginSel ? Math.round(pMargem * 100) : Math.round((1 - pMargem) * 100) });
+    awayStats.push({ type: "Margem de vitória (%)", value: homeMarginSel ? Math.round((1 - pMargem) * 100) : Math.round(pMargem * 100) });
+  }
+
+  const home: ApiTeamStats = { team: { id: -1, name: meta.home, logo: "" }, statistics: homeStats };
+  const away: ApiTeamStats = { team: { id: -2, name: meta.away, logo: "" }, statistics: awayStats };
+  return [home, away];
+}
+
 export const getFixtureStatistics = createServerFn({ method: "GET" })
   .inputValidator((d: { id: number }) => d)
   .handler(async ({ data }) => {
-    return (await apiGet("/fixtures/statistics", { fixture: data.id })) as ApiTeamStats[];
+    const stats = (await apiGet("/fixtures/statistics", { fixture: data.id })) as ApiTeamStats[];
+    if (stats && stats.length > 0) return stats;
+
+    // Fallback: dados de estatísticas vindos das previsões/features locais quando a API retorna vazio.
+    try {
+      const meta = await loadLocalFixtureMeta(data.id);
+      if (meta) {
+        const localStats = statsFromPicks(meta);
+        if (localStats) return localStats;
+      }
+    } catch {
+      console.warn("[api-football] fallback ai_predictions failed for fixture", data.id);
+    }
+
+    return stats;
   });
 
 export const getFixtureLineups = createServerFn({ method: "GET" })

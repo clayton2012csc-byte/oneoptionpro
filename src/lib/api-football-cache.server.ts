@@ -23,6 +23,10 @@ export async function getCachedData(key: string) {
 
 export async function setCachedData(key: string, data: any, ttlMs: number) {
   try {
+    // Nunca grava array vazio: evita reincidir no bug dos 5.535 caches com `[]`.
+    if (Array.isArray(data) && data.length === 0) {
+      return;
+    }
     const expiresAt = new Date(Date.now() + ttlMs).toISOString();
     const { error } = await supabaseAdmin
       .from("api_cache")

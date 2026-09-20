@@ -1,6 +1,6 @@
 /**
- * Fechamento Betano 3/4 — os 4 jogos do dia com 3 opções de cobertura cada,
- * calculadora do sistema e o bilhete pronto para copiar.
+ * Fechamento Betano 3/4 Unificado — os 4 jogos do dia com 3 opções de cobertura cada,
+ * blocos de estatísticas e especiais Betano integrados.
  */
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,9 +14,10 @@ import {
   ShieldCheck,
   Save,
   CalendarClock,
+  Zap,
 } from "lucide-react";
 import {
-  getFechamentoBetano,
+  getFechamentoUnificado,
   rebuildFechamentoBetano,
 } from "@/lib/fechamento-betano.functions";
 import {
@@ -38,9 +39,107 @@ function hora(iso: string) {
   });
 }
 
-function GameCard({ g, index }: { g: CoverageGame; index: number }) {
+function StatsBlock({ picks }: { picks: any[] | undefined }) {
+  if (!picks || !picks.length) return null;
+
+  const getPick = (market: string) => picks.find((p: any) => p.market === market);
+  const gols = getPick("Gols Dinâmico");
+  const corners = getPick("Escanteios");
+  const btts = getPick("Ambas Marcam");
+  const margem = getPick("Margem de Vitória");
+
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur">
+    <div className="mt-2 grid grid-cols-2 gap-1.5">
+      {gols && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 px-2 py-1.5 text-[10px]">
+          <span className="text-muted-foreground">Gols:</span>{" "}
+          <span className="font-bold text-primary">{gols.selection}</span>{" "}
+          <span className="text-muted-foreground">({Math.round((gols.prob || 0) * 100)}%)</span>
+        </div>
+      )}
+      {corners && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 px-2 py-1.5 text-[10px]">
+          <span className="text-muted-foreground">Escanteios:</span>{" "}
+          <span className="font-bold text-primary">{corners.selection}</span>{" "}
+          <span className="text-muted-foreground">({Math.round((corners.prob || 0) * 100)}%)</span>
+        </div>
+      )}
+      {btts && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 px-2 py-1.5 text-[10px]">
+          <span className="text-muted-foreground">BTTS:</span>{" "}
+          <span className="font-bold text-primary">{btts.selection}</span>{" "}
+          <span className="text-muted-foreground">({Math.round((btts.prob || 0) * 100)}%)</span>
+        </div>
+      )}
+      {margem && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 px-2 py-1.5 text-[10px]">
+          <span className="text-muted-foreground">Margem:</span>{" "}
+          <span className="font-bold text-primary">{margem.selection}</span>{" "}
+          <span className="text-muted-foreground">({Math.round((margem.prob || 0) * 100)}%)</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function EspeciaisBlock({ picks }: { picks: any[] | undefined }) {
+  if (!picks || !picks.length) return null;
+
+  const margem = getPickMarket(picks, "Margem de Vitória");
+  const evolucao = getPickMarket(picks, "Evolução do Jogo");
+  const placar = getPickMarket(picks, "Resultado Correto");
+
+  if (!margem && !evolucao && !placar) return null;
+
+  return (
+    <div className="mt-2 space-y-1.5">
+      <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-orange-400">
+        <Zap className="h-3 w-3" />
+        <span>Especiais Betano</span>
+      </div>
+      {margem && (
+        <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 px-2 py-1.5 text-[10px]">
+          <span className="font-bold text-orange-400">Margem:</span>{" "}
+          <span className="text-foreground">{margem.pick}</span>{" "}
+          <span className="text-muted-foreground">@ {margem.odd?.toFixed(2)}</span>
+        </div>
+      )}
+      {evolucao && (
+        <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 px-2 py-1.5 text-[10px]">
+          <span className="font-bold text-orange-400">Evolução:</span>{" "}
+          <span className="text-foreground">{evolucao.pick}</span>{" "}
+          <span className="text-muted-foreground">@ {evolucao.odd?.toFixed(2)}</span>
+        </div>
+      )}
+      {placar && (
+        <div className="rounded-lg bg-orange-500/5 border border-orange-500/20 px-2 py-1.5 text-[10px]">
+          <span className="font-bold text-orange-400">Placar Múltipla:</span>{" "}
+          <span className="text-foreground">{placar.pick}</span>{" "}
+          <span className="text-muted-foreground">@ {placar.odd?.toFixed(2)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function getPickMarket(picks: any[], marketId: string): any | null {
+  for (const p of picks) {
+    if (p.market === marketId) return p;
+    if (p.market?.includes(marketId)) return p;
+  }
+  return null;
+}
+
+interface GameCardProps {
+  g: CoverageGame;
+  index: number;
+  statsPicks?: any[];
+  specialsPicks?: any[];
+}
+
+function GameCard({ g, index, statsPicks, specialsPicks }: GameCardProps) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur hover:border-primary/30 transition-colors">
       <div className="flex items-center gap-3">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-primary/15 text-xs font-bold text-primary">
           {index + 1}
@@ -86,25 +185,29 @@ function GameCard({ g, index }: { g: CoverageGame; index: number }) {
           </div>
         ))}
       </div>
+
+      <StatsBlock picks={statsPicks} />
+      <EspeciaisBlock picks={specialsPicks} />
     </div>
   );
 }
 
 export function FechamentoBetanoPanel() {
-  const load = useServerFn(getFechamentoBetano);
+  const load = useServerFn(getFechamentoUnificado);
   const rebuild = useServerFn(rebuildFechamentoBetano);
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const q = useQuery<FechamentoSnapshot>({
-    queryKey: ["fechamento-betano"],
+  const q = useQuery<{ fechamento: FechamentoSnapshot; specials: Record<number, any[]> }>({
+    queryKey: ["fechamento-unificado"],
     queryFn: () => load({}),
     staleTime: 10 * 60 * 1000,
   });
 
-  const snap = q.data;
+  const snap = q.data?.fechamento;
+  const specials = q.data?.specials ?? {};
   const games = snap?.games ?? [];
   const math = systemMath(games, snap?.stake ?? 0.5);
 
@@ -163,7 +266,7 @@ export function FechamentoBetanoPanel() {
       <div className="rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-primary" />
-          <h2 className="text-base font-bold">Fechamento Betano — Sistema 3/4</h2>
+          <h2 className="text-base font-bold">Fechamento Betano 3/4 + Especiais</h2>
           <button
             onClick={onRebuild}
             disabled={busy}
@@ -174,9 +277,8 @@ export function FechamentoBetanoPanel() {
           </button>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Os 4 melhores jogos do dia com 3 opções de cobertura cada. Se a leitura do jogo estiver
-          certa, uma das 3 opções bate. Com 3 acertos em 4 jogos o investimento volta; com 4, o lucro
-          é máximo.
+          Os 4 melhores jogos do dia com 3 opções de cobertura cada, blocos de estatísticas e
+          mercados especiais da Betano. Sistema 3/4: 3 acertos cobrem o investimento, 4 acertos multiplicam.
         </p>
       </div>
 
@@ -193,7 +295,13 @@ export function FechamentoBetanoPanel() {
         <>
           <div className="grid gap-3 md:grid-cols-2">
             {games.map((g, i) => (
-              <GameCard key={g.fixtureId} g={g} index={i} />
+              <GameCard
+                key={g.fixtureId}
+                g={g}
+                index={i}
+                statsPicks={specials[g.fixtureId]}
+                specialsPicks={specials[g.fixtureId]}
+              />
             ))}
           </div>
 
