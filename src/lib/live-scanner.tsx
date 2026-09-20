@@ -21,7 +21,7 @@ interface LiveScannerContextType {
 
 const LiveScannerContext = createContext<LiveScannerContextType | undefined>(undefined);
 
-const SCAN_INTERVAL = 60_000; // 1 minuto
+const SCAN_INTERVAL = 300_000; // 5 minutos — economiza cota da API
 const NOTIFIED_FIXTURES_KEY = "oneoption:notified_fixtures";
 
 export function LiveScannerProvider({ children }: { children: React.ReactNode }) {
