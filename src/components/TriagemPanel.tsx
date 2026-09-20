@@ -176,7 +176,9 @@ export function TriagemPanel() {
                         </div>
                         <ScoreBadge score={it.score_confidence} />
                       </div>
-                    ))}
+                          ))
+                        );
+                      })()}
                   </div>
                 </div>
               );
