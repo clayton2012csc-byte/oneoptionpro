@@ -1,5 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { spendApiCall, readSnapshot, writeSnapshot, noteRemaining } from "./api-football-guard.server";
+import {
+  spendApiCall,
+  readSnapshot,
+  writeSnapshot,
+  noteRemaining,
+  quotaReport,
+  getAutoBlockEnabled,
+  setAutoBlockEnabled,
+} from "./api-football-guard.server";
+import { getCachedData, setCachedData } from "./api-football-cache.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://v3.football.api-sports.io";
@@ -278,10 +287,80 @@ export interface ApiStatus {
   subscription: { plan: string; end: string; active: boolean };
   requests: { current: number; limit_day: number };
 }
-export const getApiStatus = createServerFn({ method: "GET" }).handler(async () => {
-  const r = (await apiGet("/status")) as ApiStatus | unknown;
-  return (r && typeof r === "object" && "requests" in (r as object) ? (r as ApiStatus) : null);
+
+/** Cache em memória do /status para não repetir chamada a cada abertura do painel. */
+let STATUS_MEM: { at: number; data: ApiStatus } | null = null;
+const STATUS_MEM_TTL = 5 * 60_000;
+
+/** Lê o /status REAL da API-Football, cacheado (5min em memória + DB), sem gastar cota à toa. */
+async function fetchApiStatus(): Promise<ApiStatus | null> {
+  const key = process.env.API_FOOTBALL_KEY;
+  if (!key) return null;
+
+  if (STATUS_MEM && Date.now() - STATUS_MEM.at < STATUS_MEM_TTL) return STATUS_MEM.data;
+
+  const STATUS_KEY = "https://v3.football.api-sports.io/status";
+  const dbCached = (await getCachedData(STATUS_KEY).catch(() => null)) as ApiStatus | null;
+  if (dbCached && typeof dbCached === "object" && "requests" in dbCached) {
+    STATUS_MEM = { at: Date.now(), data: dbCached };
+    return dbCached;
+  }
+
+  // Só faz a chamada REAL se a cota permitir — senão devolve o que já salvamos (ou null).
+  if (!(await spendApiCall())) {
+    return STATUS_MEM?.data ?? null;
+  }
+
+  try {
+    const res = await fetch(STATUS_KEY, {
+      headers: { "x-apisports-key": key },
+      signal: AbortSignal.timeout(25_000),
+    });
+    void noteRemaining(res.headers);
+    const json = (await res.json()) as { response?: unknown };
+    const r = json.response;
+    if (r && typeof r === "object" && "requests" in (r as object)) {
+      const status = r as ApiStatus;
+      STATUS_MEM = { at: Date.now(), data: status };
+      void setCachedData(STATUS_KEY, status, 60_000).catch(() => {});
+      return status;
+    }
+    return null;
+  } catch (err) {
+    console.error("[api-football] /status error:", (err as Error).message);
+    return STATUS_MEM?.data ?? dbCached ?? null;
+  }
+}
+
+export const getApiStatus = createServerFn({ method: "GET" }).handler(async () => await fetchApiStatus());
+
+/**
+ * Dados consolidados para o painel "Minha API" (somente leituras de cache/banco,
+ * NÃO gasta cota). Combina o contador local com o saldo real informado pela API.
+ */
+export const getApiPanelData = createServerFn({ method: "GET" }).handler(async () => {
+  const report = await quotaReport();
+  const status = await fetchApiStatus().catch(() => null);
+  return {
+    ...report,
+    plan: status?.subscription?.plan ?? null,
+    planActive: status?.subscription?.active ?? null,
+    planEnd: status?.subscription?.end ?? null,
+  };
 });
+
+/** Liga/desliga o bloqueio automático em 80% (persistente). */
+export const setApiAutoBlock = createServerFn({ method: "POST" })
+  .inputValidator((d: { on: boolean }) => d)
+  .handler(async ({ data }) => {
+    await setAutoBlockEnabled(data.on);
+    return { ok: true, on: data.on };
+  });
+
+/** Estado atual do interruptor de bloqueio automático. */
+export const getApiAutoBlock = createServerFn({ method: "GET" }).handler(async () => ({
+  on: await getAutoBlockEnabled(),
+}));
 
 export const getFixture = createServerFn({ method: "GET" })
   .inputValidator((d: { id: number }) => d)
