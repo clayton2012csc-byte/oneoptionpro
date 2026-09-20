@@ -46,7 +46,7 @@ export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: n
     queryFn: () => fetchFixture({ data: { id: fixtureId } }),
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
-      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 20_000 : false;
+      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
     },
   });
 
@@ -215,7 +215,8 @@ function ResumoTab({ fixtureId, home, isLive, fixture }: { fixtureId: number; ho
   const q = useQuery({
     queryKey: ["events", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 20_000 : false,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
     enabled: !isUpcoming,
   });
 
@@ -395,7 +396,8 @@ function StatsTab({ fixtureId, isLive }: { fixtureId: number; home: { name: stri
   const q = useQuery({
     queryKey: ["stats", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 20_000 : false,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
   });
   if (q.isLoading) return <Skeleton />;
   if (!q.data || q.data.length < 2) return <Empty>Estatísticas indisponíveis.</Empty>;

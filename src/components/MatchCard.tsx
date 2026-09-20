@@ -66,8 +66,9 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
   const { data: stats } = useQuery({
     queryKey: ["fixture-statistics", fixture.fixture.id],
     queryFn: () => fetchStats({ data: { id: fixture.fixture.id } }),
-    enabled: isNearScreen && (st.live || st.finished),
-    staleTime: 30_000,
+    // Só busca estatísticas de jogos ao vivo — jogos encerrados usam os dados do próprio card.
+    enabled: isNearScreen && st.live,
+    staleTime: 5 * 60_000,
   });
 
   const getStat = (teamId: number, type: string) => {

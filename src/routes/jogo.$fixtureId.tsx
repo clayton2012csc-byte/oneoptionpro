@@ -50,7 +50,7 @@ function JogoPage() {
     queryFn: () => fetchFixture({ data: { id } }),
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
-      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 60_000 : false;
+      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
     },
   });
 
@@ -278,8 +278,8 @@ function LiveHighlightCards({ fixtureId, isLive, homeName, awayName }: { fixture
   const q = useQuery({
     queryKey: ["stats", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 60_000 : false,
-    staleTime: isLive ? 0 : 6 * 60 * 60_000,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
   });
   const data = q.data as ApiTeamStats[] | undefined;
   if (q.isLoading) return <ShimmerRows rows={2} height="h-16" />;
@@ -368,7 +368,8 @@ function ResumoTab({ fixtureId, home, isLive, fixture }: { fixtureId: number; ho
   const q = useQuery({
     queryKey: ["events", fixtureId],
     queryFn: () => fn({ data: { id: fixtureId } }),
-    refetchInterval: isLive ? 60_000 : false,
+    refetchInterval: isLive ? 90_000 : false,
+    staleTime: isLive ? 60_000 : 6 * 60 * 60_000,
     enabled: !isUpcoming,
   });
 

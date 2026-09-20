@@ -28,8 +28,8 @@ function ProximoPage() {
   const q = useQuery({
     queryKey: ["fixtures", "date", date],
     queryFn: () => fetchFixtures({ data: { date } }),
-    staleTime: 60_000,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    refetchInterval: 300_000,
   });
 
   useEffect(() => {

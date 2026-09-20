@@ -23,8 +23,8 @@ function LivePage() {
   const q = useQuery({
     queryKey: ["fixtures", "live"],
     queryFn: () => fetchLive({}),
-    staleTime: 60_000,
-    refetchInterval: 90_000,
+    staleTime: 2 * 60_000,
+    refetchInterval: 180_000,
   });
 
   return (

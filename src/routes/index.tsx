@@ -282,11 +282,11 @@ function TodosPage() {
   const q = useQuery({
     queryKey: ["fixtures", "date", selected],
     queryFn: () => fetchFixtures({ data: { date: selected } }),
-    staleTime: 15_000,
+    staleTime: 2 * 60_000,
     placeholderData: (prev) => prev,
     refetchInterval: (query) => {
       const list = (query.state.data ?? []) as ApiFixture[];
-      return list.some((f) => LIVE_STATUSES.has(f.fixture.status.short)) ? 180_000 : false; // 3 min para poupar cota
+      return list.some((f) => LIVE_STATUSES.has(f.fixture.status.short)) ? 300_000 : false; // 5 min para poupar cota
     },
     enabled: filter !== "live",
   });
@@ -294,8 +294,8 @@ function TodosPage() {
   const liveQ = useQuery({
     queryKey: ["fixtures", "live"],
     queryFn: () => fetchLiveFixtures(),
-    staleTime: 60_000,
-    refetchInterval: 90_000, // 90s para poupar cota
+    staleTime: 2 * 60_000,
+    refetchInterval: 180_000, // 3 min para poupar cota
     enabled: filter === "live",
   });
 
