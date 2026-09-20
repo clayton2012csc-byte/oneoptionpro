@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as FechamentosRouteImport } from './routes/fechamentos'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as PlacarRouteImport } from './routes/placar'
 import { Route as ProximoRouteImport } from './routes/proximo'
@@ -41,6 +42,11 @@ const AiRoute = AiRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FechamentosRoute = FechamentosRouteImport.update({
+  id: '/fechamentos',
+  path: '/fechamentos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
@@ -144,6 +151,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
   '/proximo': typeof ProximoRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/fechamentos'
     | '/live'
     | '/placar'
     | '/proximo'
@@ -207,6 +217,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/fechamentos'
     | '/live'
     | '/placar'
     | '/proximo'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/fechamentos'
     | '/live'
     | '/placar'
     | '/proximo'
@@ -248,6 +260,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
   AuthRoute: typeof AuthRoute
+  FechamentosRoute: typeof FechamentosRoute
   LiveRoute: typeof LiveRoute
   PlacarRoute: typeof PlacarRoute
   ProximoRoute: typeof ProximoRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fechamentos': {
+      id: '/fechamentos'
+      path: '/fechamentos'
+      fullPath: '/fechamentos'
+      preLoaderRoute: typeof FechamentosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -400,6 +420,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
   AuthRoute: AuthRoute,
+  FechamentosRoute: FechamentosRoute,
   LiveRoute: LiveRoute,
   PlacarRoute: PlacarRoute,
   ProximoRoute: ProximoRoute,
