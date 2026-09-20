@@ -99,8 +99,15 @@ export async function spendApiCall(): Promise<boolean> {
     /* Supabase desligado: segue sem limite (nada a proteger). */
   }
 
+  // Saldo real informado pela API tem prioridade sobre o contador local.
+  const left = await remainingLeft();
+  if (left != null && left <= REMAINING_RESERVE) {
+    console.error(`[api-guard] Saldo real da API quase no fim (${left}) — usando cache longo.`);
+    return false;
+  }
+
   const budget = dailyBudget();
-  if (count >= budget) {
+  if (left == null && count >= budget) {
     console.error(`[api-guard] Cota diária excedida (${count}/${budget}) — usando cache longo.`);
     return false;
   }
