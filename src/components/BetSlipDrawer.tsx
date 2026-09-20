@@ -46,6 +46,28 @@ export function BetSlipDrawer() {
     });
   };
 
+  const handleDemoBet = () => {
+    const placed = placeBets(
+      items.map((it) => ({
+        source: "Bilhete",
+        fixtureId: it.fixtureId,
+        home: it.home,
+        away: it.away,
+        league: it.league,
+        kickoff: it.time,
+        market: it.market,
+        selection: it.selection,
+        odd: it.odd ?? fairOdd(it.prob),
+        prob: it.prob,
+      })),
+    );
+    if (!placed) {
+      toast.error("Nada novo para apostar (ou saldo demo insuficiente)");
+      return;
+    }
+    toast.success(`${placed} aposta(s) de ${brl(demoStake)} registradas na conta demo`);
+  };
+
   const handleShare = async () => {
     const tickets: ExportTicket[] = groups.map((g, i) => ({
       market: `B${i + 1}`,
