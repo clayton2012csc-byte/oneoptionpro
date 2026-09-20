@@ -334,11 +334,15 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
 
 const SNAPSHOT_CHUNK = 50;
 
-/** Mantém a probabilidade dentro de 0..100 (a coluna não aceita valores maiores). */
+/**
+ * Mantém a probabilidade dentro de 0..99.99 — a coluna `probability` é
+ * `numeric(6,4)` (teto de 99.99). Sem isso, um selo com 100% estoura o numeric
+ * (erro 22003) e derruba o bloco inteiro em silêncio.
+ */
 function clampPct(v: unknown): number {
   const n = Number(v);
   if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.min(100, Math.round(n)));
+  return Math.max(0, Math.min(99.99, Math.round(n)));
 }
 
 /**
