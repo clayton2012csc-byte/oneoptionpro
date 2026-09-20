@@ -123,7 +123,11 @@ export function DemoAccountPanel() {
   const balance = useDemoAccount((s) => s.balance);
   const stake = useDemoAccount((s) => s.stake);
   const reset = useDemoAccount((s) => s.reset);
+  const autopilot = useDemoAccount((s) => s.autopilot);
+  const setAutopilot = useDemoAccount((s) => s.setAutopilot);
   const stats = useMemo(() => demoStats(bets), [bets]);
+  const robot = useRobotAutopilot();
+  const autoBets = bets.filter((b) => b.auto).length;
 
   return (
     <div className="p-3 sm:p-4 space-y-4">
@@ -135,8 +139,8 @@ export function DemoAccountPanel() {
             </div>
             <div className="text-3xl font-black tabular">{brl(balance)}</div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Começa com {brl(DEMO_START_BALANCE)}. Cada seleção dos bilhetes vira uma aposta de{" "}
-              {brl(stake)}, em qualquer aba do site.
+              Começa com {brl(DEMO_START_BALANCE)}. O robô aposta {brl(stake)} por bilhete, simples e
+              múltiplas, em todas as abas.
             </p>
           </div>
           <button
@@ -149,6 +153,36 @@ export function DemoAccountPanel() {
             <RotateCcw className="w-3.5 h-3.5" /> Reiniciar
           </button>
         </div>
+      </div>
+
+      <div className="rounded-3xl border border-primary/25 bg-primary/[0.06] p-4 backdrop-blur-xl flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1">
+            <Bot className="w-3.5 h-3.5" /> Robô apostador
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {autopilot
+              ? `Ligado: ${autoBets} bilhetes já apostados sozinho. Ele confere o resultado e credita o retorno automaticamente.`
+              : "Desligado. Ligue para o robô montar e apostar sozinho os bilhetes de cada aba."}
+          </p>
+          {robot.isFetching && (
+            <div className="text-[10px] text-muted-foreground mt-1">procurando bilhetes…</div>
+          )}
+        </div>
+        <button
+          onClick={() => {
+            setAutopilot(!autopilot);
+            toast.success(autopilot ? "Robô pausado" : "Robô ligado: apostando sozinho na demo");
+          }}
+          className={`h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-1 transition shrink-0 border ${
+            autopilot
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-white/5 border-white/10 hover:bg-white/10"
+          }`}
+        >
+          {autopilot ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+          {autopilot ? "Pausar" : "Ligar"}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
