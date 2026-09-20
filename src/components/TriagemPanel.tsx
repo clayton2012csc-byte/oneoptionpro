@@ -23,7 +23,7 @@ function pct1(n: number) {
 const ELITE_MIN = 60;
 
 /** Mercado destacado do dia no quadro da triagem. */
-const FEATURED = "Placar Múltiplo Exato";
+const FEATURED: TriagemMarket = "placar_exato";
 
 function AccBadge({ accuracy, n }: { accuracy: number; n: number }) {
   if (!n) return null;
