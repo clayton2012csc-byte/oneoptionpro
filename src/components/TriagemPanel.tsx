@@ -15,6 +15,28 @@ function pct(n: number) {
   return `${Math.round(n * 100)}%`;
 }
 
+function pct1(n: number) {
+  return `${(n * 100).toFixed(1)}%`;
+}
+
+/** Filtro de Elite: só a colheita de maior confiança entra no quadro. */
+const ELITE_MIN = 60;
+
+function AccBadge({ accuracy, n }: { accuracy: number; n: number }) {
+  if (!n) return null;
+  const tone =
+    accuracy >= 0.9
+      ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30"
+      : accuracy >= 0.8
+        ? "bg-primary/15 text-primary border-primary/30"
+        : "bg-amber-500/15 text-amber-300 border-amber-500/30";
+  return (
+    <span className={`ml-auto rounded-md border px-1.5 py-0.5 text-[10px] font-black tabular-nums ${tone}`}>
+      {pct1(accuracy)} de acerto
+    </span>
+  );
+}
+
 function ScoreBadge({ score }: { score: number }) {
   const tone =
     score >= 90
@@ -46,11 +68,25 @@ export function TriagemPanel() {
 
   const markets = q.data?.markets ?? [];
 
-  // Destaque do dia: Placar Exato abre o grid (diferencial de marca da Triagem).
-  const FEATURED: TriagemMarket = "placar_exato";
-  const featured = markets.find((m) => m.market === FEATURED);
-  const rest = markets.filter((m) => m.market !== FEATURED);
-  const ordered = featured ? [featured, ...rest] : markets;
+  // Ordem fixa da consultoria: os 9 mercados do dia, Placar Exato fechando o grid
+  // (quadro 9) com o selo de Destaque — o visual segue o crivo de elite de ponta a ponta.
+  const ORDER: TriagemMarket[] = [
+    "over_1_5",
+    "under_1_5",
+    "ambas_sim",
+    "ambas_nao",
+    "casa_vence",
+    "visitante_ganha",
+    "empate_com_gol",
+    "empate_sem_gols",
+    "placar_exato",
+  ];
+  const rank = new Map(ORDER.map((market, i) => [market, i]));
+  const ordered = [...markets].sort((a, b) => {
+    const ra = rank.get(a.market as TriagemMarket) ?? 99;
+    const rb = rank.get(b.market as TriagemMarket) ?? 99;
+    return ra - rb;
+  });
 
   return (
     <div className="px-3 pb-10 pt-4">
@@ -103,17 +139,24 @@ export function TriagemPanel() {
                       )}
                     </div>
                     <div className="text-[11px] text-muted-foreground tabular-nums">
-                      Assertividade: {n ? pct(m.accuracy) : "—"} | {m.greens} Greens - {m.reds} Reds
+                      <AccBadge accuracy={m.accuracy} n={n} />
+                      <span className="mx-1.5 text-white/20">|</span>
+                      {m.greens} Greens · {m.reds} Reds
                       {m.pending ? ` · ${m.pending} em aberto` : ""}
                     </div>
                   </div>
-                  <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
-                    {m.items.length === 0 && (
-                      <div className="px-3 py-3 text-[11px] text-muted-foreground">
-                        Nenhum jogo passou neste filtro.
-                      </div>
-                    )}
-                    {m.items.map((it) => (
+                    <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
+                      {(() => {
+                        const elite = m.items
+                          .filter((it) => it.score_confidence >= ELITE_MIN)
+                          .sort((a, b) => b.score_confidence - a.score_confidence);
+                        return elite.length === 0 ? (
+                          <div className="px-3 py-3 text-[11px] text-danger-foreground">
+                            Nenhum jogo com a nota de elite (Confidence Score ≥ 60) passou neste
+                            mercado.
+                          </div>
+                        ) : (
+                          elite.map((it) => 
                       <div key={it.id} className="flex items-center gap-2 px-3 py-2">
                         <StatusDot status={it.status} />
                         <div className="min-w-0 flex-1">
