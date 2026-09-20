@@ -11,6 +11,9 @@ export function BetSlipDrawer() {
   const setOpen = useBetSlip((s) => s.setOpen);
   const removeItem = useBetSlip((s) => s.removeItem);
   const clear = useBetSlip((s) => s.clear);
+  const demoMode = useDemoAccount((s) => s.mode);
+  const demoStake = useDemoAccount((s) => s.stake);
+  const placeBets = useDemoAccount((s) => s.placeBets);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -190,6 +193,15 @@ export function BetSlipDrawer() {
                   </span>
                   <span className="text-primary text-sm tabular">Odd {total.toFixed(2)}</span>
                 </div>
+                {demoMode === "demo" && (
+                  <button
+                    onClick={handleDemoBet}
+                    className="w-full h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-emerald-500/25 active:scale-95 transition"
+                  >
+                    <FlaskConical className="w-3.5 h-3.5" /> Apostar na demo ·{" "}
+                    {brl(items.length * demoStake)}
+                  </button>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={clear}
