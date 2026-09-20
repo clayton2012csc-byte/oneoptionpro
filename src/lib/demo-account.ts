@@ -108,8 +108,61 @@ export const useDemoAccount = create<DemoState>()(
       balance: DEMO_START_BALANCE,
       bets: [],
       stake: DEFAULT_BET_STAKE,
+      autopilot: true,
       setMode: (mode) => set({ mode }),
       setStake: (stake) => set({ stake: Math.max(0.1, Number(stake) || DEFAULT_BET_STAKE) }),
+      setAutopilot: (on) => set({ autopilot: on }),
+      placeTickets: (tickets) => {
+        const { bets, stake, balance } = get();
+        const known = new Set(bets.map((b) => b.id));
+        const fresh: DemoBet[] = [];
+        let left = balance;
+        for (const t of tickets) {
+          if (known.has(t.id) || !t.legs.length) continue;
+          if (left < stake) break;
+          known.add(t.id);
+          left = Number((left - stake).toFixed(2));
+          const first = t.legs[0]!;
+          fresh.push({
+            id: t.id,
+            createdAt: new Date().toISOString(),
+            source: t.source,
+            fixtureId: first.fixtureId,
+            home: first.home,
+            away: first.away,
+            league: first.league ?? undefined,
+            kickoff: first.kickoff,
+            market: t.kind === "multipla" ? `${t.legs.length} seleções` : first.market,
+            selection: t.kind === "multipla" ? t.legs.map((l) => l.selection).join(" + ") : first.selection,
+            odd: t.odd > 1 ? Number(t.odd.toFixed(2)) : 2,
+            prob: t.prob,
+            stake,
+            status: "pending",
+            kind: t.kind,
+            auto: true,
+            legs: t.legs,
+          });
+        }
+        if (!fresh.length) return 0;
+        set({ bets: [...fresh, ...bets], balance: left });
+        return fresh.length;
+      },
+      applyResults: (results) => {
+        const { bets } = get();
+        const map = new Map(results.map((r) => [r.id, r.status]));
+        let gain = 0;
+        let count = 0;
+        const next = bets.map((b) => {
+          const status = map.get(b.id);
+          if (!status || b.status !== "pending") return b;
+          count += 1;
+          if (status === "green") gain += b.stake * b.odd;
+          return { ...b, status, settledAt: new Date().toISOString() };
+        });
+        if (!count) return 0;
+        set({ bets: next, balance: Number((get().balance + gain).toFixed(2)) });
+        return count;
+      },
       placeBets: (inputs) => {
         const { bets, stake, balance } = get();
         const existing = new Set(bets.filter((b) => b.status === "pending").map((b) => b.id));
