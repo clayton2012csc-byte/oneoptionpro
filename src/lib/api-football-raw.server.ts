@@ -42,6 +42,7 @@ async function apiRaw(path: string, params: Record<string, string | number>, ttl
       headers: { "x-apisports-key": key },
       signal: AbortSignal.timeout(25_000),
     });
+    void noteRemaining(res.headers);
     const json = (await res.json()) as { response?: unknown; errors?: unknown };
     const errs = json.errors;
     const hasErr = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;
