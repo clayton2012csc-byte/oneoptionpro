@@ -50,7 +50,7 @@ function JogoPage() {
     queryFn: () => fetchFixture({ data: { id } }),
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
-      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 60_000 : false;
+      return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
     },
   });
 
