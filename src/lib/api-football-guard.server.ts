@@ -22,7 +22,40 @@ function entitlementDayKey(): string {
 }
 
 /** Teto padrão quando `API_DAILY_BUDGET` não está definido ou é inválido. */
-export const DEFAULT_DAILY_BUDGET = 1500;
+export const DEFAULT_DAILY_BUDGET = 7000;
+/** Margem mantida sempre livre no saldo real informado pela API. */
+const REMAINING_RESERVE = 200;
+const REMAINING_KEY = "api_football_remaining";
+let remainingMem: { at: number; left: number } | null = null;
+
+/**
+ * Registra o saldo real do dia informado pela própria API-Football
+ * (cabeçalhos `x-ratelimit-requests-remaining`). É a fonte mais confiável.
+ */
+export async function noteRemaining(headers: Headers): Promise<void> {
+  const raw = headers.get("x-ratelimit-requests-remaining");
+  const left = raw == null ? NaN : Number(raw);
+  if (!Number.isFinite(left)) return;
+  remainingMem = { at: Date.now(), left };
+  try {
+    const endOfDay = new Date();
+    endOfDay.setUTCHours(23, 59, 59, 999);
+    await setCachedData(REMAINING_KEY, { left }, Math.max(1, endOfDay.getTime() - Date.now()));
+  } catch {
+    /* melhor esforço */
+  }
+}
+
+async function remainingLeft(): Promise<number | null> {
+  if (remainingMem && Date.now() - remainingMem.at < 60_000) return remainingMem.left;
+  try {
+    const cached = (await getCachedData(REMAINING_KEY)) as { left?: unknown } | null;
+    if (typeof cached?.left === "number") return cached.left;
+  } catch {
+    /* sem cache: segue pelo contador local */
+  }
+  return null;
+}
 const MAX_DAILY_BUDGET = 100_000;
 let warned = false;
 
@@ -66,8 +99,15 @@ export async function spendApiCall(): Promise<boolean> {
     /* Supabase desligado: segue sem limite (nada a proteger). */
   }
 
+  // Saldo real informado pela API tem prioridade sobre o contador local.
+  const left = await remainingLeft();
+  if (left != null && left <= REMAINING_RESERVE) {
+    console.error(`[api-guard] Saldo real da API quase no fim (${left}) — usando cache longo.`);
+    return false;
+  }
+
   const budget = dailyBudget();
-  if (count >= budget) {
+  if (left == null && count >= budget) {
     console.error(`[api-guard] Cota diária excedida (${count}/${budget}) — usando cache longo.`);
     return false;
   }

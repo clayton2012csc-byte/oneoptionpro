@@ -6,7 +6,7 @@
  */
 import type { ApiFixture } from "./api-football.functions";
 import { getCachedData, setCachedData } from "./api-football-cache.server";
-import { spendApiCall, readSnapshot, writeSnapshot } from "./api-football-guard.server";
+import { spendApiCall, readSnapshot, writeSnapshot, noteRemaining } from "./api-football-guard.server";
 
 const BASE = "https://v3.football.api-sports.io";
 const TZ = "America/Sao_Paulo";
@@ -42,6 +42,7 @@ async function apiRaw(path: string, params: Record<string, string | number>, ttl
       headers: { "x-apisports-key": key },
       signal: AbortSignal.timeout(25_000),
     });
+    void noteRemaining(res.headers);
     const json = (await res.json()) as { response?: unknown; errors?: unknown };
     const errs = json.errors;
     const hasErr = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;

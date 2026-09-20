@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { spendApiCall, readSnapshot, writeSnapshot } from "./api-football-guard.server";
+import { spendApiCall, readSnapshot, writeSnapshot, noteRemaining } from "./api-football-guard.server";
 
 const BASE = "https://v3.football.api-sports.io";
 const TZ = "America/Sao_Paulo";
@@ -16,9 +16,11 @@ function ttlFor(path: string, params: Record<string, any> = {}): number {
   if (path.startsWith("/fixtures/headtohead")) return 12 * 60 * 60_000; // 12h
   
   if (path === "/fixtures") {
-    // Se for hoje ou live, TTL baixíssimo (15s)
-    const isToday = params.date === new Date().toISOString().split('T')[0];
-    if (params.live === "all" || isToday || path === "/fixtures") return 60_000; // 1 min minimum even for live/today
+    // Página de um jogo específico: reaproveita por 5 min (a página já refaz
+    // a leitura sozinha a cada minuto quando o jogo está em andamento).
+    if (params.id) return 5 * 60_000;
+    const isToday = params.date === new Date().toISOString().split("T")[0];
+    if (params.live === "all" || isToday) return 60_000;
     return 30 * 60_000; // 30min para datas passadas ou futuras distantes
   }
   
@@ -91,6 +93,7 @@ async function apiGet(path: string, params: Record<string, string | number | und
         headers: { "x-apisports-key": key },
         signal: AbortSignal.timeout(PROMISE_TIMEOUT),
       });
+      void noteRemaining(res.headers);
       if (!res.ok) {
         if (res.status === 429 && attempt < maxAttempts) {
           await sleep(6_000 * attempt);
