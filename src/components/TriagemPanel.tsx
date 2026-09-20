@@ -22,6 +22,9 @@ function pct1(n: number) {
 /** Filtro de Elite: só a colheita de maior confiança entra no quadro. */
 const ELITE_MIN = 60;
 
+/** Mercado destacado do dia no quadro da triagem. */
+const FEATURED = "Placar Múltiplo Exato";
+
 function AccBadge({ accuracy, n }: { accuracy: number; n: number }) {
   if (!n) return null;
   const tone =
