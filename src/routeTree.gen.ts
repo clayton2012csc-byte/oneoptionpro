@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as FechamentosRouteImport } from './routes/fechamentos'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as PlacarRouteImport } from './routes/placar'
@@ -42,6 +43,11 @@ const AiRoute = AiRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FechamentosRoute = FechamentosRouteImport.update({
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/demo': typeof DemoRoute
   '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/demo': typeof DemoRoute
   '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
@@ -173,6 +181,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/auth': typeof AuthRoute
+  '/demo': typeof DemoRoute
   '/fechamentos': typeof FechamentosRoute
   '/live': typeof LiveRoute
   '/placar': typeof PlacarRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/demo'
     | '/fechamentos'
     | '/live'
     | '/placar'
@@ -217,6 +227,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/demo'
     | '/fechamentos'
     | '/live'
     | '/placar'
@@ -238,6 +249,7 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/auth'
+    | '/demo'
     | '/fechamentos'
     | '/live'
     | '/placar'
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
   AuthRoute: typeof AuthRoute
+  DemoRoute: typeof DemoRoute
   FechamentosRoute: typeof FechamentosRoute
   LiveRoute: typeof LiveRoute
   PlacarRoute: typeof PlacarRoute
@@ -299,6 +312,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fechamentos': {
@@ -420,6 +440,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
   AuthRoute: AuthRoute,
+  DemoRoute: DemoRoute,
   FechamentosRoute: FechamentosRoute,
   LiveRoute: LiveRoute,
   PlacarRoute: PlacarRoute,

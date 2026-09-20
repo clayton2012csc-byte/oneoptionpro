@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Ticket, X, Trash2, Layers, FileDown, Share2, Sparkles } from "lucide-react";
+import { Ticket, X, Trash2, Layers, FileDown, Share2, Sparkles, FlaskConical } from "lucide-react";
 import { useBetSlip, groupSlip, slipOdds, fairOdd } from "@/lib/bet-slip";
+import { useDemoAccount, brl } from "@/lib/demo-account";
 import { printFechamento, shareFechamento, type ExportTicket } from "@/lib/fechamento-export";
 import { toast } from "sonner";
 
