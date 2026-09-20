@@ -3,6 +3,7 @@
  * Client-safe: só o corpo dos handlers roda no servidor.
  */
 import { createServerFn } from "@tanstack/react-start";
+import type { AutoPick } from "./auto-ticket";
 
 type SupabaseError = { code?: string; message?: string };
 
@@ -132,6 +133,111 @@ export const listAutoTickets = createServerFn({ method: "GET" }).handler(async (
   }
   return out;
 });
+
+export interface BestTicketRow {
+  id: string;
+  fixture_id: number;
+  kickoff: string;
+  league: string | null;
+  home: string;
+  away: string;
+  home_logo: string | null;
+  away_logo: string | null;
+  picks: AutoPick[];
+  meta: {
+    headline?: string;
+    flow?: string;
+    goalsSubType?: string;
+    expectedGoals?: number;
+    expectedCorners?: number;
+    lambdaHome?: number;
+    lambdaAway?: number;
+    eliteMin?: Record<string, number>;
+    scoreCluster?: string[];
+  } | null;
+  /** nota máxima dos 5 Pilares entre os picks do jogo */
+  topScore: number;
+  /** maior probabilidade entre picks emitidos (elite !== false) */
+  topProb: number;
+  /** mercado do pick com maior score (fallback: maior prob) */
+  bestMarket: string;
+  /** nº de picks emitidos (elite !== false) */
+  eliteCount: number;
+}
+
+/**
+ * Melhores jogos das próximas N horas para apostar agora.
+ * Lê APENAS `auto_tickets` (palpites já salvos) — zero chamadas à API-Football,
+ * perfeitamente seguro com a cota esgotada / auto-bloqueio 80% ativo.
+ * Ranqueia por score dos 5 Pilares (máx. por jogo), desempate por probabilidade.
+ */
+export const listBestTickets = createServerFn({ method: "GET" })
+  .inputValidator((d: { horizonHours?: number } | undefined) => d ?? {})
+  .handler(async ({ data }): Promise<{ updatedAt: number; rows: BestTicketRow[] }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const horizonHours = Math.min(Math.max(data.horizonHours ?? 24, 1), 72);
+    const from = new Date().toISOString();
+    const until = new Date(Date.now() + horizonHours * 60 * 60 * 1000).toISOString();
+    const { data: rows, error } = await supabaseAdmin
+      .from("auto_tickets")
+      .select("id, fixture_id, kickoff, league, home, away, home_logo, away_logo, picks, meta, status")
+      .gte("kickoff", from)
+      .lte("kickoff", until)
+      .eq("status", "pending")
+      .order("kickoff", { ascending: true })
+      .limit(250);
+    if (isMissingAutoTicketsTable(error)) return { updatedAt: Date.now(), rows: [] };
+    if (error) throw new Error(error.message);
+
+    const raw = (rows ?? []) as {
+      id: string;
+      fixture_id: number;
+      kickoff: string;
+      league: string | null;
+      home: string;
+      away: string;
+      home_logo: string | null;
+      away_logo: string | null;
+      picks: unknown;
+      meta: unknown;
+    }[];
+
+    const out: BestTicketRow[] = raw.map((r) => {
+      const picks = (Array.isArray(r.picks) ? r.picks : []) as AutoPick[];
+      const scorable = picks.filter((p) => typeof p.score === "number" && p.score != null);
+      const best = scorable.length
+        ? scorable.reduce((a, b) => ((a.score ?? 0) >= (b.score ?? 0) ? a : b))
+        : null;
+      const byProb = picks
+        .filter((p) => p.elite !== false && typeof p.prob === "number")
+        .sort((a, b) => (b.prob ?? 0) - (a.prob ?? 0))[0];
+      const meta = (r.meta ?? null) as BestTicketRow["meta"] | null;
+      return {
+        id: r.id,
+        fixture_id: Number(r.fixture_id),
+        kickoff: r.kickoff,
+        league: r.league,
+        home: r.home,
+        away: r.away,
+        home_logo: r.home_logo,
+        away_logo: r.away_logo,
+        picks,
+        meta,
+        topScore: best?.score ?? 0,
+        topProb: byProb?.prob ?? best?.prob ?? 0,
+        bestMarket: best?.market ?? byProb?.market ?? "",
+        eliteCount: picks.filter((p) => p.elite !== false).length,
+      };
+    });
+
+    out.sort(
+      (a, b) =>
+        b.topScore - a.topScore ||
+        b.topProb - a.topProb ||
+        a.kickoff.localeCompare(b.kickoff),
+    );
+    return { updatedAt: Date.now(), rows: out };
+  });
 
 export interface MarketAccuracyRow {
   market: string;

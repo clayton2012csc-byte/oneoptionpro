@@ -18,6 +18,7 @@ import { EspeciaisBetanoPanel } from "@/components/EspeciaisBetanoPanel";
 import { LotecaPanel } from "@/components/LotecaPanel";
 import { AutoTicketsPanel } from "@/components/AutoTicketsPanel";
 import { MultiplasPanel } from "@/components/MultiplasPanel";
+import { MelhoresJogosPanel } from "@/components/MelhoresJogosPanel";
 import { DiagnosticoPanel } from "@/components/DiagnosticoPanel";
 import { saveScanPredictions, loadScanPredictions } from "@/lib/scan-cache.functions";
 import { LoadingList, EmptyState } from "@/components/StateViews";
@@ -525,7 +526,8 @@ function TodosPage() {
       {folder === "multiplas" && <MultiplasPanel />}
       {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
       {activeSection === "artilheiros" && <ArtilheirosPanel />}
-      {!folder && activeSection !== "artilheiros" && (
+      {activeSection === "melhores" && <MelhoresJogosPanel />}
+      {!folder && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <>
           <div role="tablist" aria-label="Filtrar jogos" className="flex gap-1.5 overflow-x-auto scrollbar-none px-3 pb-3">
 
@@ -572,13 +574,13 @@ function TodosPage() {
           </div>
         </>
       )}
-      {(filter === "live" ? liveQ.isLoading : q.isLoading) && activeSection !== "artilheiros" && <LoadingList />}
-      {(filter === "live" ? liveQ.error : q.error) && activeSection !== "artilheiros" && (
+      {(filter === "live" ? liveQ.isLoading : q.isLoading) && activeSection !== "artilheiros" && activeSection !== "melhores" && <LoadingList />}
+      {(filter === "live" ? liveQ.error : q.error) && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <p className="p-4 text-sm text-destructive font-black uppercase tracking-tighter">
           Erro de Conexão: {((filter === "live" ? liveQ.error : q.error) as Error).message}
         </p>
       )}
-      {((filter === "live" ? liveQ.data : q.data)) && filtered.length === 0 && activeSection !== "artilheiros" && (
+      {((filter === "live" ? liveQ.data : q.data)) && filtered.length === 0 && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <EmptyState 
           text={
             filter === "live" ? "Nenhum jogo ao vivo no momento." :
@@ -589,7 +591,7 @@ function TodosPage() {
           } 
         />
       )}
-      {filtered.length > 0 && activeSection !== "artilheiros" && (
+      {filtered.length > 0 && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <>
           {!folder && <HighlightsSlider fixtures={filtered} />}
           {!folder && (
