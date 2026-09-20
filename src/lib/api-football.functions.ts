@@ -93,6 +93,7 @@ async function apiGet(path: string, params: Record<string, string | number | und
         headers: { "x-apisports-key": key },
         signal: AbortSignal.timeout(PROMISE_TIMEOUT),
       });
+      void noteRemaining(res.headers);
       if (!res.ok) {
         if (res.status === 429 && attempt < maxAttempts) {
           await sleep(6_000 * attempt);
