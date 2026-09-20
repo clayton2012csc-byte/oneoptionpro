@@ -222,7 +222,13 @@ export const useDemoAccount = create<DemoState>()(
     }),
     {
       name: "oneoption-demo-account",
-      partialize: (s) => ({ mode: s.mode, balance: s.balance, bets: s.bets, stake: s.stake }),
+      partialize: (s) => ({
+        mode: s.mode,
+        balance: s.balance,
+        bets: s.bets,
+        stake: s.stake,
+        autopilot: s.autopilot,
+      }),
     },
   ),
 );
