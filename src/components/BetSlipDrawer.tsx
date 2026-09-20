@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Ticket, X, Trash2, Layers, FileDown, Share2, Sparkles } from "lucide-react";
+import { Ticket, X, Trash2, Layers, FileDown, Share2, Sparkles, FlaskConical } from "lucide-react";
 import { useBetSlip, groupSlip, slipOdds, fairOdd } from "@/lib/bet-slip";
+import { useDemoAccount, brl } from "@/lib/demo-account";
 import { printFechamento, shareFechamento, type ExportTicket } from "@/lib/fechamento-export";
 import { toast } from "sonner";
 
@@ -10,6 +11,9 @@ export function BetSlipDrawer() {
   const setOpen = useBetSlip((s) => s.setOpen);
   const removeItem = useBetSlip((s) => s.removeItem);
   const clear = useBetSlip((s) => s.clear);
+  const demoMode = useDemoAccount((s) => s.mode);
+  const demoStake = useDemoAccount((s) => s.stake);
+  const placeBets = useDemoAccount((s) => s.placeBets);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -40,6 +44,28 @@ export function BetSlipDrawer() {
       tickets,
       justification: `Bilhete montado manualmente com ${items.length} seleções em ${groups.length} partidas (${created} apostas criadas). Odd combinada estimada: ${total.toFixed(2)}.`,
     });
+  };
+
+  const handleDemoBet = () => {
+    const placed = placeBets(
+      items.map((it) => ({
+        source: "Bilhete",
+        fixtureId: it.fixtureId,
+        home: it.home,
+        away: it.away,
+        league: it.league,
+        kickoff: it.time,
+        market: it.market,
+        selection: it.selection,
+        odd: it.odd ?? fairOdd(it.prob),
+        prob: it.prob,
+      })),
+    );
+    if (!placed) {
+      toast.error("Nada novo para apostar (ou saldo demo insuficiente)");
+      return;
+    }
+    toast.success(`${placed} aposta(s) de ${brl(demoStake)} registradas na conta demo`);
   };
 
   const handleShare = async () => {
@@ -189,6 +215,15 @@ export function BetSlipDrawer() {
                   </span>
                   <span className="text-primary text-sm tabular">Odd {total.toFixed(2)}</span>
                 </div>
+                {demoMode === "demo" && (
+                  <button
+                    onClick={handleDemoBet}
+                    className="w-full h-11 rounded-2xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-200 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-emerald-500/25 active:scale-95 transition"
+                  >
+                    <FlaskConical className="w-3.5 h-3.5" /> Apostar na demo ·{" "}
+                    {brl(items.length * demoStake)}
+                  </button>
+                )}
                 <div className="grid grid-cols-3 gap-2">
                   <button
                     onClick={clear}

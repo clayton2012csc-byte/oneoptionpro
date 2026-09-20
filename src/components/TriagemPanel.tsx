@@ -22,6 +22,9 @@ function pct1(n: number) {
 /** Filtro de Elite: só a colheita de maior confiança entra no quadro. */
 const ELITE_MIN = 60;
 
+/** Mercado destacado do dia no quadro da triagem. */
+const FEATURED: TriagemMarket = "placar_exato";
+
 function AccBadge({ accuracy, n }: { accuracy: number; n: number }) {
   if (!n) return null;
   const tone =
@@ -145,38 +148,41 @@ export function TriagemPanel() {
                       {m.pending ? ` · ${m.pending} em aberto` : ""}
                     </div>
                   </div>
-                    <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
-                      {(() => {
-                        const elite = m.items
-                          .filter((it) => it.score_confidence >= ELITE_MIN)
-                          .sort((a, b) => b.score_confidence - a.score_confidence);
-                        return elite.length === 0 ? (
+                  <div className="max-h-72 overflow-y-auto divide-y divide-white/5">
+                    {(() => {
+                      const elite = m.items
+                        .filter((it) => it.score_confidence >= ELITE_MIN)
+                        .sort((a, b) => b.score_confidence - a.score_confidence);
+                      if (elite.length === 0) {
+                        return (
                           <div className="px-3 py-3 text-[11px] text-danger-foreground">
                             Nenhum jogo com a nota de elite (Confidence Score ≥ 60) passou neste
                             mercado.
                           </div>
-                        ) : (
-                          elite.map((it) => 
-                      <div key={it.id} className="flex items-center gap-2 px-3 py-2">
-                        <StatusDot status={it.status} />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[12px] font-semibold truncate">{it.match_name}</div>
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {it.predicted_value}
-                            {it.result_score ? ` · final ${it.result_score}` : ""}
-                            {it.kickoff
-                              ? ` · ${new Date(it.kickoff).toLocaleString("pt-BR", {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}`
-                              : ""}
+                        );
+                      }
+                      return elite.map((it) => (
+                        <div key={it.id} className="flex items-center gap-2 px-3 py-2">
+                          <StatusDot status={it.status} />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[12px] font-semibold truncate">{it.match_name}</div>
+                            <div className="text-[10px] text-muted-foreground truncate">
+                              {it.predicted_value}
+                              {it.result_score ? ` · final ${it.result_score}` : ""}
+                              {it.kickoff
+                                ? ` · ${new Date(it.kickoff).toLocaleString("pt-BR", {
+                                    day: "2-digit",
+                                    month: "2-digit",
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}`
+                                : ""}
+                            </div>
                           </div>
+                          <ScoreBadge score={it.score_confidence} />
                         </div>
-                        <ScoreBadge score={it.score_confidence} />
-                      </div>
-                    ))}
+                      ));
+                    })()}
                   </div>
                 </div>
               );

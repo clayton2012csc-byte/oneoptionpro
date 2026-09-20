@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 import { SECTIONS } from "@/lib/sections-config";
 import { BetSlipDrawer } from "./BetSlipDrawer";
+import { AccountModeSwitch } from "./AccountModeSwitch";
 
 function SectionMenu() {
   const active = useActiveSection();
@@ -154,6 +155,7 @@ function TopBar() {
           >
             <RefreshCw className={`w-4 h-4 ${fetching > 0 ? "animate-spin" : ""}`} />
           </button>
+          <AccountModeSwitch />
           <ApiUsagePanel />
           <ScannerToggle />
           {!authLoading &&
