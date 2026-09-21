@@ -404,8 +404,8 @@ export function DiagnosticoPanel() {
         </div>
       </header>
 
-      <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4">
-        <div className="min-h-[220px] max-h-[52vh] overflow-y-auto space-y-3 pr-1">
+      <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4 overflow-x-hidden">
+        <div className="min-w-0 min-h-[220px] max-h-[70vh] overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pr-1">
           {booting && messages.length === 0 && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Lendo o banco e mapeando abas, mercados e estratégias...
