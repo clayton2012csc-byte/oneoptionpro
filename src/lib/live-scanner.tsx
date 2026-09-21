@@ -77,7 +77,7 @@ export function LiveScannerProvider({ children }: { children: React.ReactNode })
 
       const predictions = await fetchBulk({
         data: {
-          fixtures: activeLive.map(f => ({
+          fixtures: activeLive.slice(0, MAX_SCAN_FIXTURES).map(f => ({
             id: f.fixture.id,
             homeId: f.teams.home.id,
             awayId: f.teams.away.id
