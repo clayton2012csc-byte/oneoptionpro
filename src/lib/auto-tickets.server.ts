@@ -458,7 +458,8 @@ export async function backfillScanSnapshots(limit = 600): Promise<number> {
 async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const home = teamStatsFromIndex(fx.teams.home.id, idx);
   const away = teamStatsFromIndex(fx.teams.away.id, idx);
-  if (!home.played || !away.played) return null;
+  // Amostra mínima de 3 jogos por time — abaixo disso o palpite é chute.
+  if (home.played < 3 || away.played < 3) return null;
 
   const pred = computeOwnPrediction(home, away);
   if (!pred.ready) return null;
