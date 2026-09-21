@@ -100,21 +100,8 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
     }
   }, [isNearScreen, fixture, qc]);
 
-  // Ao passar o dedo/mouse no card já buscamos a prévia do confronto,
-  // para a página abrir com as informações completas.
-  const fetchPreviewWarm = useServerFn(getMatchPreview);
-  const warmedRef = useRef(false);
-  const prewarm = () => {
-    if (warmedRef.current || st.finished) return;
-    warmedRef.current = true;
-    const homeId = fixture.teams.home.id;
-    const awayId = fixture.teams.away.id;
-    void qc.prefetchQuery({
-      queryKey: ["preview", homeId, awayId],
-      queryFn: () => fetchPreviewWarm({ data: { homeId, awayId, last: 5 } }),
-      staleTime: 30 * 60_000,
-    });
-  };
+  // Sem pré-busca ao passar o mouse/dedo: cada prévia custava várias
+  // requisições da API por card apenas por encostar no cartão.
 
 
 
