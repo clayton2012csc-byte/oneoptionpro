@@ -125,12 +125,16 @@ function teamStatsFromIndex(
     });
   }
   const n = games.length;
+  // Amostra pequena puxa para a média do futebol (1,35 gol/jogo): com 1 ou 2 jogos
+  // o modelo não pode afirmar 95% de vitória para ninguém.
+  const K = 2;
+  const BASE = 1.35;
   return {
     played: n,
     goalsFor: gf,
     goalsAgainst: ga,
-    goalsForAvg: gf / n,
-    goalsAgainstAvg: ga / n,
+    goalsForAvg: (gf + BASE * K) / (n + K),
+    goalsAgainstAvg: (ga + BASE * K) / (n + K),
     cornersFor: 0,
     cornersAgainst: 0,
     cornersForAvg: CORNERS_AVG,
