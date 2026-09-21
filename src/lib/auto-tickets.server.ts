@@ -35,7 +35,7 @@ const CARDS_AVG = 2.0;
 
 // ── Loader dos mínimos do Filtro de Elite (ai_weights, cacheado 15 min) ──
 let eliteMinCache: { at: number; min: Record<string, number> } | null = null;
-async function loadEliteMin(): Promise<Record<string, number>> {
+export async function loadEliteMin(): Promise<Record<string, number>> {
   const now = Date.now();
   if (eliteMinCache && now - eliteMinCache.at < 15 * 60 * 1000) return eliteMinCache.min;
   let db: Record<string, number> | null | undefined;
@@ -65,7 +65,12 @@ function teamStatsFromIndex(
   idx: Map<number, ApiFixture[]>,
   last = 5,
 ): TeamPreviewStats {
-  const games = (idx.get(teamId) ?? []).slice(0, last);
+  // Sempre os jogos MAIS RECENTES primeiro — sem isso a amostra saía fora de ordem
+  // e gerava médias irreais (ex.: 95% de vitória para o visitante).
+  const games = (idx.get(teamId) ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime())
+    .slice(0, last);
   const empty: TeamPreviewStats = {
     played: 0,
     goalsFor: 0,
