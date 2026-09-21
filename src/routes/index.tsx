@@ -309,7 +309,7 @@ function TodosPage() {
       if (filter === "live") {
         apiFixtures = liveQ.data || [];
       } else {
-        apiFixtures = await fetchApiFixtures({ data: { count: 30 } }); // Reduced from 80 to save API quota
+        apiFixtures = await fetchApiFixtures({ data: { count: 10 } }); // teto baixo: cada jogo custa ~12 chamadas
       }
 
       if (!apiFixtures || apiFixtures.length === 0) {
