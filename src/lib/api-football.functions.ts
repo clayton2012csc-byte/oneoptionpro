@@ -1017,20 +1017,22 @@ export const getMatchPreview = createServerFn({ method: "GET" })
     }
 
 
-    // Guarda a grade montada por bastante tempo: se a cota diária acabar, a
-    // página continua exibindo a última grade boa em vez de ficar vazia.
-    const previewKey = `preview:${data.homeId}:${data.awayId}:${last}`;
-    const saved = (await getCachedData(previewKey).catch(() => null)) as
-      | { home: TeamPreviewStats; away: TeamPreviewStats; last: number }
-      | null;
-    if (saved?.home?.played && saved?.away?.played) return saved;
+    type Preview = { home: TeamPreviewStats; away: TeamPreviewStats; last: number };
+    // Grade recente (6h) + cópia de sobrevivência (7 dias). Assim, quando a
+    // cota diária acaba, a página mostra a última grade boa em vez de vazia.
+    const freshKey = `preview:${data.homeId}:${data.awayId}:${last}`;
+    const keepKey = `${freshKey}#keep`;
+
+    const fresh = (await getCachedData(freshKey).catch(() => null)) as Preview | null;
+    if (fresh?.home && fresh?.away) return fresh;
 
     const [home, away] = await Promise.all([teamAgg(data.homeId), teamAgg(data.awayId)]);
-    const out = { home, away, last };
+    const out: Preview = { home, away, last };
 
     if (home.played > 0 || away.played > 0) {
       try {
-        await setCachedData(previewKey, out, 7 * 24 * 60 * 60_000);
+        await setCachedData(freshKey, out, 6 * 60 * 60_000);
+        await setCachedData(keepKey, out, 7 * 24 * 60 * 60_000);
       } catch {
         /* melhor esforço */
       }
@@ -1038,8 +1040,8 @@ export const getMatchPreview = createServerFn({ method: "GET" })
     }
 
     // Nada veio da API (cota esgotada/falha): devolve a última grade salva.
-    const fallback = (await readSnapshot(previewKey).catch(() => null)) as typeof out | null;
-    return fallback ?? out;
+    const kept = (await getCachedData(keepKey).catch(() => null)) as Preview | null;
+    return kept ?? out;
   });
 
 // --- Types (subset of API-Football v3) ---
