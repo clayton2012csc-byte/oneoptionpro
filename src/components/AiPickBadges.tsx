@@ -37,6 +37,13 @@ function shortLabel(market: string, selection: string): string {
   return MARKET_LABEL[market] ?? market;
 }
 
+/** Qual é o palpite (quando o rótulo do selo não já diz). Evita "1X2 95%" sem dizer de quem. */
+function shortPick(market: string, selection: string): string | null {
+  if (["Gols Dinâmico", "Ambas Marcam", "Escanteios", "Cartões"].includes(market)) return null;
+  const s = selection.replace(" marcar primeiro e ", " 1º + ").trim();
+  return s.length > 22 ? `${s.slice(0, 21)}…` : s;
+}
+
 function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
   const { market, predictions, persistedPredictions } = useMarketFilter();
   const isSelected = useSelectedFixture() === fixtureId;
