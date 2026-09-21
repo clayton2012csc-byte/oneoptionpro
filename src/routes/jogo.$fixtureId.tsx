@@ -10,6 +10,7 @@ import {
   type ApiFixture, type ApiEvent, type ApiTeamStats, type ApiLineup, type ApiStandingsResp,
 } from "@/lib/api-football.functions";
 import { computeOwnPrediction } from "@/lib/own-prediction";
+import { useScanSync } from "@/lib/scan-sync";
 import { buildMasterPrediction } from "@/lib/master-engine";
 import { AiForecastTab } from "@/components/AiForecastTab";
 import { ShimmerRows, ShimmerSummary, ShimmerStats, ShimmerLineups, ShimmerTable } from "@/components/Shimmer";
@@ -433,6 +434,7 @@ function AiPredictionCards({ fixture }: { fixture: ApiFixture }) {
     queryFn: () => fn({ data: { homeId: fixture.teams.home.id, awayId: fixture.teams.away.id, last: 5 } }),
     staleTime: 45 * 60_000,
   });
+  useScanSync(fixture.fixture.id, fixture.teams.home.name, fixture.teams.away.name, q.data ?? undefined);
   const pred = useMemo(() => (q.data ? computeOwnPrediction(q.data.home, q.data.away) : null), [q.data]);
   const master = useMemo(() => (pred?.ready ? buildMasterPrediction(pred) : null), [pred]);
 

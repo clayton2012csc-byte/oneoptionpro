@@ -35,7 +35,7 @@ const CARDS_AVG = 2.0;
 
 // ── Loader dos mínimos do Filtro de Elite (ai_weights, cacheado 15 min) ──
 let eliteMinCache: { at: number; min: Record<string, number> } | null = null;
-async function loadEliteMin(): Promise<Record<string, number>> {
+export async function loadEliteMin(): Promise<Record<string, number>> {
   const now = Date.now();
   if (eliteMinCache && now - eliteMinCache.at < 15 * 60 * 1000) return eliteMinCache.min;
   let db: Record<string, number> | null | undefined;
@@ -65,7 +65,12 @@ function teamStatsFromIndex(
   idx: Map<number, ApiFixture[]>,
   last = 5,
 ): TeamPreviewStats {
-  const games = (idx.get(teamId) ?? []).slice(0, last);
+  // Sempre os jogos MAIS RECENTES primeiro — sem isso a amostra saía fora de ordem
+  // e gerava médias irreais (ex.: 95% de vitória para o visitante).
+  const games = (idx.get(teamId) ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.fixture.date).getTime() - new Date(a.fixture.date).getTime())
+    .slice(0, last);
   const empty: TeamPreviewStats = {
     played: 0,
     goalsFor: 0,
@@ -120,12 +125,16 @@ function teamStatsFromIndex(
     });
   }
   const n = games.length;
+  // Amostra pequena puxa para a média do futebol (1,35 gol/jogo): com 1 ou 2 jogos
+  // o modelo não pode afirmar 95% de vitória para ninguém.
+  const K = 2;
+  const BASE = 1.35;
   return {
     played: n,
     goalsFor: gf,
     goalsAgainst: ga,
-    goalsForAvg: gf / n,
-    goalsAgainstAvg: ga / n,
+    goalsForAvg: (gf + BASE * K) / (n + K),
+    goalsAgainstAvg: (ga + BASE * K) / (n + K),
     cornersFor: 0,
     cornersAgainst: 0,
     cornersForAvg: CORNERS_AVG,
@@ -449,7 +458,8 @@ export async function backfillScanSnapshots(limit = 600): Promise<number> {
 async function buildRow(fx: ApiFixture, idx: Map<number, ApiFixture[]>) {
   const home = teamStatsFromIndex(fx.teams.home.id, idx);
   const away = teamStatsFromIndex(fx.teams.away.id, idx);
-  if (!home.played || !away.played) return null;
+  // Amostra mínima de 3 jogos por time — abaixo disso o palpite é chute.
+  if (home.played < 3 || away.played < 3) return null;
 
   const pred = computeOwnPrediction(home, away);
   if (!pred.ready) return null;
