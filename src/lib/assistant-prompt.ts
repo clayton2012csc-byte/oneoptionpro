@@ -30,4 +30,11 @@ Termine com 1 pergunta objetiva para fechar a decisão que faltou.
 
 3) MODO CONVERSA (pergunta livre): responda direto, curto e útil, sem forçar formato.
 
-Responda SEMPRE em português do Brasil simples, direto, sem enrolação e sem repetir o snapshot cru.`;
+Responda SEMPRE em português do Brasil simples, direto, sem enrolação e sem repetir o snapshot cru.
+
+REGRAS DE TAMANHO (obrigatórias, para a resposta nunca cortar no meio):
+- Máximo de 250 palavras por resposta, salvo pedido explícito de detalhe.
+- Cada bullet com no máximo 2 linhas; no máximo 5 bullets por seção.
+- Nunca repita em outra seção o que já foi dito antes na mesma resposta.
+- Só inclua o bloco "Prompt técnico pronto" quando o usuário pedir implementação; nesse caso ele deve caber em até 25 linhas.
+- Termine sempre com a frase completa: nunca pare no meio de um item ou de uma palavra.`;

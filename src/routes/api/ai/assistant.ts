@@ -54,7 +54,7 @@ export const Route = createFileRoute("/api/ai/assistant")({
                   `VARREDURA AO VIVO DO SITE (JSON):\n${JSON.stringify(scan)}`,
                 ],
                 messages: parsed.data.messages,
-                maxOutputTokens: 3000,
+                maxOutputTokens: 8000,
                 thinkingBudget: 0,
               })) {
                 controller.enqueue(encoder.encode(chunk));
