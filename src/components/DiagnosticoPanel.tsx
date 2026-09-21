@@ -60,7 +60,7 @@ function Bubble({ m }: { m: Msg }) {
   if (m.role === "user") {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-primary/20 border border-primary/30 px-3.5 py-2.5 text-sm space-y-2">
+        <div className="max-w-[85%] min-w-0 overflow-x-hidden whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary/20 border border-primary/30 px-3.5 py-2.5 text-sm space-y-2">
           {!!m.attachments?.length && (
             <div className="flex flex-wrap gap-2">
               {m.attachments.map((a, i) =>
@@ -103,8 +103,8 @@ function Bubble({ m }: { m: Msg }) {
       <span className="shrink-0 w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
         <Bot className="w-4 h-4" />
       </span>
-      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] px-3.5 py-3">
-        <div className="prose prose-sm prose-invert max-w-none prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:text-[11px] prose-headings:text-primary prose-headings:text-sm">
+      <div className="min-w-0 flex-1 overflow-x-hidden rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] px-3.5 py-3">
+        <div className="prose prose-sm prose-invert w-full max-w-full break-words overflow-x-hidden prose-p:break-words prose-li:break-words prose-headings:break-words prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-words prose-table:block prose-table:overflow-x-auto prose-table:max-w-full prose-a:break-all prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:text-[11px] prose-headings:text-primary prose-headings:text-sm">
           <ReactMarkdown>{m.content}</ReactMarkdown>
         </div>
         <button
@@ -404,8 +404,8 @@ export function DiagnosticoPanel() {
         </div>
       </header>
 
-      <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4">
-        <div className="min-h-[220px] max-h-[52vh] overflow-y-auto space-y-3 pr-1">
+      <div className="rounded-3xl border border-white/10 bg-black/20 p-3 sm:p-4 overflow-x-hidden">
+        <div className="min-w-0 min-h-[220px] max-h-[70vh] overflow-y-auto overflow-x-hidden overscroll-contain space-y-3 pr-1">
           {booting && messages.length === 0 && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Lendo o banco e mapeando abas, mercados e estratégias...
