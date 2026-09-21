@@ -26,7 +26,7 @@ export function usePersistedQueryCache(queryClient: QueryClient) {
         });
 
         const [unsubscribe, restored] = persistQueryClient({
-          queryClient,
+          queryClient: queryClient as never,
           persister,
           maxAge: 12 * 60 * 60_000,
           buster: "v1",
