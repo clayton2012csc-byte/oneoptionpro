@@ -103,8 +103,8 @@ function Bubble({ m }: { m: Msg }) {
       <span className="shrink-0 w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
         <Bot className="w-4 h-4" />
       </span>
-      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] px-3.5 py-3">
-        <div className="prose prose-sm prose-invert max-w-none prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:text-[11px] prose-headings:text-primary prose-headings:text-sm">
+      <div className="min-w-0 flex-1 overflow-x-hidden rounded-2xl rounded-tl-md border border-white/10 bg-white/[0.04] px-3.5 py-3">
+        <div className="prose prose-sm prose-invert w-full max-w-full break-words overflow-x-hidden prose-p:break-words prose-li:break-words prose-headings:break-words prose-pre:whitespace-pre-wrap prose-pre:break-words prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:break-words prose-table:block prose-table:overflow-x-auto prose-table:max-w-full prose-a:break-all prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:text-[11px] prose-headings:text-primary prose-headings:text-sm">
           <ReactMarkdown>{m.content}</ReactMarkdown>
         </div>
         <button
