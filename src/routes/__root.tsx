@@ -155,6 +155,8 @@ function RootComponent() {
   const pathname = router.state.location.pathname;
   const bare = pathname.startsWith("/auth");
 
+  usePersistedQueryCache(queryClient);
+
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
