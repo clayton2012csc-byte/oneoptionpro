@@ -31,7 +31,7 @@ function entitlementDayKey(): string {
 /** Teto padrão quando `API_DAILY_BUDGET` não está definido ou é inválido. */
 export const DEFAULT_DAILY_BUDGET = 7000;
 /** Margem mantida sempre livre no saldo real informado pela API. */
-const REMAINING_RESERVE = 200;
+const REMAINING_RESERVE = 500;
 const REMAINING_KEY = "api_football_remaining";
 let remainingMem: { at: number; left: number; limit: number | null } | null = null;
 
