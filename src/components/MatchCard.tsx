@@ -110,9 +110,6 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       ref={cardRef}
       to="/jogo/$fixtureId"
       params={{ fixtureId: String(fixture.fixture.id) }}
-      onPointerEnter={prewarm}
-      onTouchStart={prewarm}
-      onFocus={prewarm}
       onClick={(e) => {
         if (isDesktopThreeCol()) {
           e.preventDefault();
