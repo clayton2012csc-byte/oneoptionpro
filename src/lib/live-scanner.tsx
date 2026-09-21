@@ -21,7 +21,8 @@ interface LiveScannerContextType {
 
 const LiveScannerContext = createContext<LiveScannerContextType | undefined>(undefined);
 
-const SCAN_INTERVAL = 300_000; // 5 minutos — economiza cota da API
+const SCAN_INTERVAL = 900_000; // 15 minutos — economiza cota da API
+const MAX_SCAN_FIXTURES = 8; // cada jogo custa ~12 chamadas na API
 const NOTIFIED_FIXTURES_KEY = "oneoption:notified_fixtures";
 
 export function LiveScannerProvider({ children }: { children: React.ReactNode }) {
@@ -76,7 +77,7 @@ export function LiveScannerProvider({ children }: { children: React.ReactNode })
 
       const predictions = await fetchBulk({
         data: {
-          fixtures: activeLive.map(f => ({
+          fixtures: activeLive.slice(0, MAX_SCAN_FIXTURES).map(f => ({
             id: f.fixture.id,
             homeId: f.teams.home.id,
             awayId: f.teams.away.id
