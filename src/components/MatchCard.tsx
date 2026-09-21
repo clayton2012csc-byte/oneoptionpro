@@ -210,7 +210,8 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       {/* Footer: Market Odds & Shortcuts */}
       <div className="relative z-10 pt-4 mt-2 border-t border-white/5 flex items-center justify-between gap-4">
         <div className="flex-1 overflow-x-auto scrollbar-none">
-          <OddsStrip fixtureId={fixture.fixture.id} enabled={!st.finished} />
+         {/* Odds reais só para o jogo aberto — na lista elas gastavam 1 requisição por card. */}
+         <OddsStrip fixtureId={fixture.fixture.id} enabled={!st.finished && !!isSelected} />
         </div>
         
         <div className="flex items-center gap-1.5 shrink-0">
