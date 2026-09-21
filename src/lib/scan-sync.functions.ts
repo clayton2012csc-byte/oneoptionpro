@@ -59,7 +59,14 @@ export const syncScanSnapshot = createServerFn({ method: "POST" })
       score: p.score ?? null,
       elite: p.elite ?? null,
     }));
-    const top = topExactScores(pred.matrix)[0];
+    // Placar exato: usa o MESMO placar sugerido pela página (motor mestre, já
+    // coerente com a tendência), e não o placar bruto da matriz.
+    const { buildMasterPrediction } = await import("./master-engine");
+    const master = buildMasterPrediction(pred);
+    const raw = topExactScores(pred.matrix)[0];
+    const top = master.exactScore?.p
+      ? { i: master.exactScore.h, j: master.exactScore.a, p: master.exactScore.p }
+      : raw;
     if (top) {
       const entry = {
         market: "Placar Exato Seco",
