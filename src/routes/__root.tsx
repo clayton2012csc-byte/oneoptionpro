@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LiveScannerProvider } from "@/lib/live-scanner";
 import { getPublicConfigFn } from "@/lib/public-config.functions";
 import { isSupabaseConfigured, setPublicConfig } from "@/lib/public-config";
+import { usePersistedQueryCache } from "@/lib/query-persist";
 
 function NotFoundComponent() {
   return (
@@ -153,6 +154,8 @@ function RootComponent() {
   const router = useRouter();
   const pathname = router.state.location.pathname;
   const bare = pathname.startsWith("/auth");
+
+  usePersistedQueryCache(queryClient);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
