@@ -100,21 +100,8 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
     }
   }, [isNearScreen, fixture, qc]);
 
-  // Ao passar o dedo/mouse no card já buscamos a prévia do confronto,
-  // para a página abrir com as informações completas.
-  const fetchPreviewWarm = useServerFn(getMatchPreview);
-  const warmedRef = useRef(false);
-  const prewarm = () => {
-    if (warmedRef.current || st.finished) return;
-    warmedRef.current = true;
-    const homeId = fixture.teams.home.id;
-    const awayId = fixture.teams.away.id;
-    void qc.prefetchQuery({
-      queryKey: ["preview", homeId, awayId],
-      queryFn: () => fetchPreviewWarm({ data: { homeId, awayId, last: 5 } }),
-      staleTime: 30 * 60_000,
-    });
-  };
+  // Sem pré-busca ao passar o mouse/dedo: cada prévia custava várias
+  // requisições da API por card apenas por encostar no cartão.
 
 
 
@@ -123,9 +110,6 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       ref={cardRef}
       to="/jogo/$fixtureId"
       params={{ fixtureId: String(fixture.fixture.id) }}
-      onPointerEnter={prewarm}
-      onTouchStart={prewarm}
-      onFocus={prewarm}
       onClick={(e) => {
         if (isDesktopThreeCol()) {
           e.preventDefault();
@@ -210,7 +194,8 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       {/* Footer: Market Odds & Shortcuts */}
       <div className="relative z-10 pt-4 mt-2 border-t border-white/5 flex items-center justify-between gap-4">
         <div className="flex-1 overflow-x-auto scrollbar-none">
-          <OddsStrip fixtureId={fixture.fixture.id} enabled={!st.finished} />
+         {/* Odds reais só para o jogo aberto — na lista elas gastavam 1 requisição por card. */}
+         <OddsStrip fixtureId={fixture.fixture.id} enabled={!st.finished && !!isSelected} />
         </div>
         
         <div className="flex items-center gap-1.5 shrink-0">
