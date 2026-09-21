@@ -16,6 +16,7 @@ import {
 } from "@/lib/api-football.functions";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { buildMasterPrediction } from "@/lib/master-engine";
+import { useScanSync } from "@/lib/scan-sync";
 import { setSelectedFixture } from "@/lib/selected-fixture";
 import { toggleFixture, usePinnedSections, type SectionId } from "@/lib/pinned-sections";
 
