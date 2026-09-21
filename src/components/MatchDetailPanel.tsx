@@ -257,6 +257,7 @@ function statRow(label: string, h: string | number, a: string | number, hint?: s
 
 function PreviewBlock({ fixture }: { fixture: ApiFixture }) {
   const q = usePreview(fixture, true);
+  useScanSync(fixture.fixture.id, fixture.teams.home.name, fixture.teams.away.name, q.data ?? undefined);
   if (q.isLoading) return <Skeleton />;
   if (!q.data || (q.data.home.played === 0 && q.data.away.played === 0)) {
     return <Empty>Sem histórico recente das duas equipes.</Empty>;
