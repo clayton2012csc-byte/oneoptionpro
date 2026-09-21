@@ -50,20 +50,34 @@ export async function noteRemaining(headers: Headers): Promise<void> {
   try {
     const endOfDay = new Date();
     endOfDay.setUTCHours(23, 59, 59, 999);
-    await setCachedData(REMAINING_KEY, { left, limit: Number.isFinite(limit) ? limit : null }, Math.max(1, endOfDay.getTime() - Date.now()));
+    await setCachedData(
+      REMAINING_KEY,
+      { left, limit: Number.isFinite(limit) ? limit : null, day: entitlementDayKey(), at: Date.now() },
+      Math.max(1, endOfDay.getTime() - Date.now()),
+    );
   } catch {
     /* melhor esforço */
   }
 }
 
 type RemainingInfo = { left: number; limit: number | null };
+/** Saldo real só vale para o dia corrente e por no máximo 2h — senão é resquício
+ *  do dia anterior e travaria o site inteiro sem motivo. */
+const REMAINING_MAX_AGE_MS = 2 * 60 * 60_000;
 async function remainingInfo(): Promise<RemainingInfo | null> {
   if (remainingMem && Date.now() - remainingMem.at < 60_000) {
     return { left: remainingMem.left, limit: remainingMem.limit };
   }
   try {
-    const cached = (await getCachedData(REMAINING_KEY)) as { left?: unknown; limit?: unknown } | null;
-    if (typeof cached?.left === "number") {
+    const cached = (await getCachedData(REMAINING_KEY)) as
+      | { left?: unknown; limit?: unknown; day?: unknown; at?: unknown }
+      | null;
+    const fresh =
+      cached != null &&
+      cached.day === entitlementDayKey() &&
+      typeof cached.at === "number" &&
+      Date.now() - cached.at < REMAINING_MAX_AGE_MS;
+    if (fresh && typeof cached?.left === "number") {
       return {
         left: cached.left,
         limit: typeof cached.limit === "number" ? cached.limit : null,
@@ -74,6 +88,7 @@ async function remainingInfo(): Promise<RemainingInfo | null> {
   }
   return null;
 }
+
 const MAX_DAILY_BUDGET = 100_000;
 let warned = false;
 

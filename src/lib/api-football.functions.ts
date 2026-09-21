@@ -785,6 +785,16 @@ export const getBookmakerFixtureIds = createServerFn({ method: "GET" })
     if (!key) return [] as number[];
     const bookmaker = data.bookmaker ?? 32;
     const maxPages = Math.min(Math.max(data.maxPages ?? 6, 1), 15);
+    const listKey = `bookmaker_fixtures:${bookmaker}:${data.date}`;
+
+    // Cache persistente no banco (6h) — evita repetir dezenas de páginas a cada visita.
+    try {
+      const saved = (await getCachedData(listKey)) as number[] | null;
+      if (Array.isArray(saved) && saved.length) return saved;
+    } catch {
+      /* segue e tenta a API */
+    }
+
     const ids: number[] = [];
     for (let page = 1; page <= maxPages; page++) {
       const url = new URL("https://v3.football.api-sports.io/odds");
@@ -804,7 +814,8 @@ export const getBookmakerFixtureIds = createServerFn({ method: "GET" })
       if (cachedPage && Date.now() - cachedPage.at < 30 * 60_000) {
         json = cachedPage.data as OddsPage;
       } else {
-
+        // Toda página conta na cota: se o guarda negar, paramos e usamos o que há.
+        if (!(await spendApiCall())) break;
         for (let attempt = 1; attempt <= 3 && !json; attempt++) {
           await acquireSlot();
           try {
@@ -812,6 +823,7 @@ export const getBookmakerFixtureIds = createServerFn({ method: "GET" })
               headers: { "x-apisports-key": key },
               signal: AbortSignal.timeout(15_000),
             });
+            void noteRemaining(res.headers);
             if (res.status === 429) {
               await sleep(6_000 * attempt);
               continue;
@@ -843,8 +855,17 @@ export const getBookmakerFixtureIds = createServerFn({ method: "GET" })
       if (page >= total) break;
     }
 
-    return Array.from(new Set(ids));
+    const out = Array.from(new Set(ids));
+    if (out.length) {
+      try {
+        await setCachedData(listKey, out, 6 * 60 * 60_000);
+      } catch {
+        /* melhor esforço */
+      }
+    }
+    return out;
   });
+
 
 
 
