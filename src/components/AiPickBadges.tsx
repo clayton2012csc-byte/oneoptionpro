@@ -82,7 +82,7 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
                 {isExact ? `IA INDICADO • PLACAR EXATO` : shortLabel(o.market, o.selection)}
               </span>
               <span className={`text-[11px] font-black tabular mt-0.5 ${highlight ? "text-white" : "text-white"}`}>
-                {isExact ? `${o.selection} · ${pct(o.prob)}` : pct(o.prob)}
+                {isExact ? `${o.selection} · ${pct(o.prob)}` : `${shortPick(o.market, o.selection)} · ${pct(o.prob)}`}
                 {showScore ? (
                   <span
                     title={`Confiança 5 Pilares · mín. ${o.score}%`}

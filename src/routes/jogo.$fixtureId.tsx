@@ -434,6 +434,7 @@ function AiPredictionCards({ fixture }: { fixture: ApiFixture }) {
     queryFn: () => fn({ data: { homeId: fixture.teams.home.id, awayId: fixture.teams.away.id, last: 5 } }),
     staleTime: 45 * 60_000,
   });
+  useScanSync(fixture.fixture.id, fixture.teams.home.name, fixture.teams.away.name, q.data ?? undefined);
   const pred = useMemo(() => (q.data ? computeOwnPrediction(q.data.home, q.data.away) : null), [q.data]);
   const master = useMemo(() => (pred?.ready ? buildMasterPrediction(pred) : null), [pred]);
 
