@@ -1017,8 +1017,29 @@ export const getMatchPreview = createServerFn({ method: "GET" })
     }
 
 
+    // Guarda a grade montada por bastante tempo: se a cota diária acabar, a
+    // página continua exibindo a última grade boa em vez de ficar vazia.
+    const previewKey = `preview:${data.homeId}:${data.awayId}:${last}`;
+    const saved = (await getCachedData(previewKey).catch(() => null)) as
+      | { home: TeamPreviewStats; away: TeamPreviewStats; last: number }
+      | null;
+    if (saved?.home?.played && saved?.away?.played) return saved;
+
     const [home, away] = await Promise.all([teamAgg(data.homeId), teamAgg(data.awayId)]);
-    return { home, away, last };
+    const out = { home, away, last };
+
+    if (home.played > 0 || away.played > 0) {
+      try {
+        await setCachedData(previewKey, out, 7 * 24 * 60 * 60_000);
+      } catch {
+        /* melhor esforço */
+      }
+      return out;
+    }
+
+    // Nada veio da API (cota esgotada/falha): devolve a última grade salva.
+    const fallback = (await readSnapshot(previewKey).catch(() => null)) as typeof out | null;
+    return fallback ?? out;
   });
 
 // --- Types (subset of API-Football v3) ---
