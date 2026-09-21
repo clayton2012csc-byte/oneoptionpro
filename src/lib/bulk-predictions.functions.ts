@@ -20,16 +20,18 @@ export const getBulkPredictions = createServerFn({ method: "POST" })
     const MAX_FIXTURES = 10;
     const results: ScanPrediction[] = [];
     
+    const fixtures = data.fixtures.slice(0, MAX_FIXTURES);
+
     // Buscar jogos que JÁ ESTÃO no banco (previsões persistidas pelo usuário ou sistema)
     const { data: dbPredictions } = await supabaseAdmin
       .from("ai_predictions")
       .select("*")
-      .in("fixture_id", data.fixtures.map(f => f.id));
+      .in("fixture_id", fixtures.map(f => f.id));
 
     const dbMap = new Map(dbPredictions?.map(p => [p.fixture_id, p]) || []);
 
-    for (let i = 0; i < data.fixtures.length; i += CHUNK_SIZE) {
-      const chunk = data.fixtures.slice(i, i + CHUNK_SIZE);
+    for (let i = 0; i < fixtures.length; i += CHUNK_SIZE) {
+      const chunk = fixtures.slice(i, i + CHUNK_SIZE);
       const chunkResults = await Promise.all(
         chunk.map(async (f) => {
           try {
