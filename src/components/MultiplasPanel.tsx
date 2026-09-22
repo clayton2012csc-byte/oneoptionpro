@@ -26,6 +26,7 @@ import {
   type PopularMultiple,
 } from "@/lib/multiplas.functions";
 import { makeSlipId, useBetSlip } from "@/lib/bet-slip";
+import { FixtureLink } from "@/components/FixtureLink";
 
 const LEVEL_UI: Record<
   string,
