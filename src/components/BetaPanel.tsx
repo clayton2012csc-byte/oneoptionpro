@@ -13,6 +13,7 @@ import {
 import { usePinnedSections } from "@/lib/pinned-sections";
 import { listFechamentos, saveFechamento, deleteFechamento, type Fechamento } from "@/lib/fechamentos";
 import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
+import { BetaHibridoPanel } from "@/components/BetaHibridoPanel";
 
 const TRIAGEM_TAG: Record<string, string> = {
   under_1_5: "U1.5",
@@ -676,5 +677,6 @@ export function BetaPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }
