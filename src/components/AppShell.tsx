@@ -75,6 +75,7 @@ function SectionMenu() {
                   onClick={() => {
                     setActiveSection(s.id);
                     setOpen(false);
+                    navigate({ to: "/" });
                   }}
                   className={cls}
                 >
