@@ -12,6 +12,7 @@ import { TriagemCertificacaoPanel } from "@/components/TriagemCertificacaoPanel"
 import { TriagemEvolucaoPanel } from "@/components/TriagemEvolucaoPanel";
 import { TriagemRelatorioPanel } from "@/components/TriagemRelatorioPanel";
 import { TriagemAuditoriaPanel } from "@/components/TriagemAuditoriaPanel";
+import { FixtureLink } from "@/components/FixtureLink";
 
 function pct(n: number) {
   return `${Math.round(n * 100)}%`;
