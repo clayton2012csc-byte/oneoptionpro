@@ -234,7 +234,14 @@ function SectionRail() {
         }
 
         return (
-          <button key={s.id} onClick={() => setActiveSection(s.id)} className={cls}>
+          <button
+            key={s.id}
+            onClick={() => {
+              setActiveSection(s.id);
+              navigate({ to: "/" });
+            }}
+            className={cls}
+          >
             {content}
           </button>
         );
@@ -245,6 +252,7 @@ function SectionRail() {
 
 function MobileNav() {
   const active = useActiveSection();
+  const navigate = useNavigate();
   const [ligas, setLigas] = useState(false);
   return (
     <>
