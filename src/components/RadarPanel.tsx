@@ -3,6 +3,7 @@ import { X, Zap, Target, ArrowRight, ShieldCheck, Trash2 } from "lucide-react";
 import { setActiveSection } from "@/lib/active-section";
 import { toggleFixture } from "@/lib/pinned-sections";
 import { toast } from "sonner";
+import { FixtureLink } from "@/components/FixtureLink";
 
 export function RadarPanel({ onClose, isTab = false }: { onClose?: () => void; isTab?: boolean }) {
   const { foundOpportunities, clearOpportunities, lastScanAt } = useLiveScanner();
