@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronRight, ClipboardCheck, RefreshCw } from "lucide-react";
 import { getTriagemCertificacao } from "@/lib/triagem.functions";
 import { TRIAGEM_LABEL, type TriagemMarket } from "@/lib/triagem-engine";
+import { FixtureLink } from "@/components/FixtureLink";
 
 function fmtKickoff(k: string | null) {
   if (!k) return "—";
