@@ -13,6 +13,7 @@ import {
 import { usePinnedSections } from "@/lib/pinned-sections";
 import { listFechamentos, saveFechamento, deleteFechamento, type Fechamento } from "@/lib/fechamentos";
 import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
+import { BetaHibridoPanel } from "@/components/BetaHibridoPanel";
 
 const TRIAGEM_TAG: Record<string, string> = {
   under_1_5: "U1.5",
@@ -391,6 +392,10 @@ export function BetaPanel() {
   };
 
   return (
+    <>
+    <div className="mx-3 mb-4">
+      <BetaHibridoPanel />
+    </div>
     <div className="mx-3 mb-6 rounded-[2.5rem] bg-gradient-to-br from-cyan-500/15 via-card to-card border border-cyan-500/30 overflow-hidden shadow-2xl relative group animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
       <div className="flex flex-wrap items-center gap-4 px-5 py-5 relative z-10 border-b border-white/5 bg-cyan-500/5">
@@ -672,5 +677,6 @@ export function BetaPanel() {
         </div>
       )}
     </div>
+    </>
   );
 }
