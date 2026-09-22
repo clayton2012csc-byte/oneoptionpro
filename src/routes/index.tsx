@@ -527,16 +527,19 @@ function TodosPage() {
           </div>
         </div>
       )}
-      {folder === "bingao" && <BingaoClosurePanel />}
-      {folder === "loteca" && <LotecaPanel />}
-      {folder === "radar" && <div className="px-3 pb-8"><RadarPanel isTab /></div>}
-      {folder === "beta" && <BetaPanel />}
-      {folder === "especiais-betano" && <EspeciaisBetanoPanel />}
-      {folder === "auditoria" && <AutoTicketsPanel />}
-      {folder === "multiplas" && <MultiplasPanel />}
-      {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
-      {activeSection === "artilheiros" && <ArtilheirosPanel />}
-      {activeSection === "melhores" && <MelhoresJogosPanel />}
+      <Suspense fallback={<div className="px-3 pb-8"><LoadingList /></div>}>
+        {folder === "bingao" && <BingaoClosurePanel />}
+        {folder === "loteca" && <LotecaPanel />}
+        {folder === "radar" && <div className="px-3 pb-8"><RadarPanel isTab /></div>}
+        {folder === "beta" && <BetaPanel />}
+        {folder === "especiais-betano" && <EspeciaisBetanoPanel />}
+        {folder === "auditoria" && <AutoTicketsPanel />}
+        {folder === "multiplas" && <MultiplasPanel />}
+        {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
+        {activeSection === "artilheiros" && <ArtilheirosPanel />}
+        {activeSection === "melhores" && <MelhoresJogosPanel />}
+      </Suspense>
+
       {!folder && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <>
           <div role="tablist" aria-label="Filtrar jogos" className="flex gap-1.5 overflow-x-auto scrollbar-none px-3 pb-3">
