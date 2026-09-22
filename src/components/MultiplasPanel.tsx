@@ -26,6 +26,7 @@ import {
   type PopularMultiple,
 } from "@/lib/multiplas.functions";
 import { makeSlipId, useBetSlip } from "@/lib/bet-slip";
+import { FixtureLink } from "@/components/FixtureLink";
 
 const LEVEL_UI: Record<
   string,
@@ -191,7 +192,9 @@ function TicketCard({ t, onCheck, checking }: { t: PopularMultiple; onCheck: () 
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-[15px] font-black leading-tight tracking-tight text-white">
-                  {l.home} <span className="text-muted-foreground">×</span> {l.away}
+                  <FixtureLink fixtureId={l.fixtureId}>
+                    {l.home} <span className="text-muted-foreground">×</span> {l.away}
+                  </FixtureLink>
                 </div>
                 <div className="mt-1 flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/70">
                   <CalendarClock className="h-3 w-3" />

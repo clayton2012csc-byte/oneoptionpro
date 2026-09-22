@@ -15,6 +15,7 @@ import {
   type AutoTicketRow,
 } from "@/lib/auto-tickets.functions";
 import { isRiskyMarket, marketRisk, getHideRisky, setHideRisky, RISK_THRESHOLD } from "@/lib/market-risk";
+import { FixtureLink } from "@/components/FixtureLink";
 
 const BATCH_MS = 25_000; // espaçamento entre lotes na carga inicial
 const IDLE_MS = 5 * 60_000; // varredura incremental depois de completo
@@ -81,6 +82,16 @@ function TicketCard({ row, hideRisky }: { row: AutoTicketRow; hideRisky: boolean
 
         <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
+
+      <div className="px-3 pb-2 -mt-2">
+        <FixtureLink
+          fixtureId={row.fixture_id}
+          className="inline-flex rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+        >
+          Abrir jogo
+        </FixtureLink>
+      </div>
+
 
       {snap && (
         <div className="px-3 pb-2 -mt-1 flex flex-wrap items-center gap-2">

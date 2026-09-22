@@ -18,6 +18,7 @@ import {
   Ticket,
 } from "lucide-react";
 import { listBestTickets, type BestTicketRow } from "@/lib/auto-tickets.functions";
+import { FixtureLink } from "@/components/FixtureLink";
 import { makeSlipId, useBetSlip } from "@/lib/bet-slip";
 import { isRiskyMarket, marketRisk, getHideRisky, setHideRisky } from "@/lib/market-risk";
 
@@ -122,7 +123,11 @@ function GameCard({ row, hideRisky }: { row: BestTicketRow; hideRisky: boolean }
           {row.away_logo && <img src={row.away_logo} alt={row.away} className="h-7 w-7 rounded-full bg-background/80" loading="lazy" />}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-[13px] font-bold truncate">{row.home} <span className="text-muted-foreground">x</span> {row.away}</div>
+          <div className="text-[13px] font-bold truncate">
+            <FixtureLink fixtureId={row.fixture_id}>
+              {row.home} <span className="text-muted-foreground">x</span> {row.away}
+            </FixtureLink>
+          </div>
           <div className="text-[11px] text-muted-foreground truncate">
             {row.league} · {hora(row.kickoff)}
           </div>

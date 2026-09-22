@@ -18,6 +18,7 @@ import { useRobotAutopilot } from "@/lib/robot-autopilot";
 function SectionMenu() {
   const active = useActiveSection();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const current = SECTIONS.find((s) => s.id === active);
   return (
     <div className="relative">
@@ -74,6 +75,7 @@ function SectionMenu() {
                   onClick={() => {
                     setActiveSection(s.id);
                     setOpen(false);
+                    navigate({ to: "/" });
                   }}
                   className={cls}
                 >
@@ -199,6 +201,7 @@ function TopBar() {
 
 function SectionRail() {
   const active = useActiveSection();
+  const navigate = useNavigate();
   return (
     <aside className="hidden md:flex w-20 shrink-0 flex-col items-center gap-3 py-6 border-r border-white/10 bg-card/25 backdrop-blur-xl">
       {SECTIONS.map((s) => {
@@ -231,7 +234,14 @@ function SectionRail() {
         }
 
         return (
-          <button key={s.id} onClick={() => setActiveSection(s.id)} className={cls}>
+          <button
+            key={s.id}
+            onClick={() => {
+              setActiveSection(s.id);
+              navigate({ to: "/" });
+            }}
+            className={cls}
+          >
             {content}
           </button>
         );
@@ -242,6 +252,7 @@ function SectionRail() {
 
 function MobileNav() {
   const active = useActiveSection();
+  const navigate = useNavigate();
   const [ligas, setLigas] = useState(false);
   return (
     <>
@@ -291,7 +302,14 @@ function MobileNav() {
               );
             }
             return (
-              <button key={s.id} onClick={() => setActiveSection(s.id)} className={cls}>
+              <button
+                key={s.id}
+                onClick={() => {
+                  setActiveSection(s.id);
+                  navigate({ to: "/" });
+                }}
+                className={cls}
+              >
                 {content}
               </button>
             );

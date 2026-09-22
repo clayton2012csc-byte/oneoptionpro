@@ -3,6 +3,7 @@ import { X, Zap, Target, ArrowRight, ShieldCheck, Trash2 } from "lucide-react";
 import { setActiveSection } from "@/lib/active-section";
 import { toggleFixture } from "@/lib/pinned-sections";
 import { toast } from "sonner";
+import { FixtureLink } from "@/components/FixtureLink";
 
 export function RadarPanel({ onClose, isTab = false }: { onClose?: () => void; isTab?: boolean }) {
   const { foundOpportunities, clearOpportunities, lastScanAt } = useLiveScanner();
@@ -65,7 +66,9 @@ export function RadarPanel({ onClose, isTab = false }: { onClose?: () => void; i
                     {opp.fixture.league.name}
                   </div>
                   <div className="text-sm font-black text-white leading-tight truncate">
-                    {opp.fixture.teams.home.name} x {opp.fixture.teams.away.name}
+                    <FixtureLink fixtureId={opp.fixtureId}>
+                      {opp.fixture.teams.home.name} x {opp.fixture.teams.away.name}
+                    </FixtureLink>
                   </div>
                 </div>
                 <div className="text-right ml-3">

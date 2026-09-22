@@ -9,6 +9,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronRight, ClipboardCheck, RefreshCw } from "lucide-react";
 import { getTriagemCertificacao } from "@/lib/triagem.functions";
 import { TRIAGEM_LABEL, type TriagemMarket } from "@/lib/triagem-engine";
+import { FixtureLink } from "@/components/FixtureLink";
 
 function fmtKickoff(k: string | null) {
   if (!k) return "—";
@@ -122,26 +123,34 @@ export function TriagemCertificacaoPanel() {
               key={f.fixture_id}
               className="glass rounded-2xl border border-white/10 overflow-hidden"
             >
-              <button
-                onClick={() => setOpen(isOpen ? null : f.fixture_id)}
-                className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition"
-              >
-                {isOpen ? (
-                  <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-bold truncate">{f.match_name}</div>
-                  <div className="text-[10px] text-muted-foreground truncate">
-                    {f.league ? `${f.league} · ` : ""}
-                    {fmtKickoff(f.kickoff)}
+              <div className="flex items-center">
+                <button
+                  onClick={() => setOpen(isOpen ? null : f.fixture_id)}
+                  className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition"
+                >
+                  {isOpen ? (
+                    <ChevronDown className="h-4 w-4 shrink-0 text-primary" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] font-bold truncate">{f.match_name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">
+                      {f.league ? `${f.league} · ` : ""}
+                      {fmtKickoff(f.kickoff)}
+                    </div>
                   </div>
-                </div>
-                <span className="rounded-md border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[10px] font-black text-primary tabular-nums">
-                  {f.published}/9
-                </span>
-              </button>
+                  <span className="rounded-md border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[10px] font-black text-primary tabular-nums">
+                    {f.published}/9
+                  </span>
+                </button>
+                <FixtureLink
+                  fixtureId={f.fixture_id}
+                  className="mr-3 shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                >
+                  Abrir jogo
+                </FixtureLink>
+              </div>
 
               {isOpen && (
                 <div className="divide-y divide-white/5">
