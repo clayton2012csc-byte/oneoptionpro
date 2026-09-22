@@ -53,10 +53,26 @@ export async function betaHibridoSnapshot(): Promise<BetaSnapshot> {
     .order("kickoff", { ascending: true })
     .limit(1000);
 
-  if (error || !data?.length) return empty;
+  if (error) return empty;
+
+  /** Reserva: quando o dia não tem 4 jogos publicados, completa com os melhores avaliados. */
+  let rows: any[] = data ?? [];
+  const distinct = new Set(rows.map((r) => Number(r.fixture_id))).size;
+  if (distinct < 4) {
+    const t2 = await table();
+    const { data: extra } = await t2
+      .select("fixture_id, match_name, league, kickoff, market_type, predicted_value, score_confidence, probability, status")
+      .in("market_type", BETA_MARKETS as unknown as string[])
+      .gte("kickoff", from)
+      .lte("kickoff", to)
+      .order("score_confidence", { ascending: false })
+      .limit(400);
+    rows = rows.concat(extra ?? []);
+  }
+  if (!rows.length) return empty;
 
   const byFixture = new Map<number, BetaCandidate>();
-  for (const row of data as any[]) {
+  for (const row of rows as any[]) {
     const id = Number(row.fixture_id);
     if (!Number.isFinite(id)) continue;
     const names = splitName(row.match_name);
