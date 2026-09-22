@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, lazy, Suspense } from "react";
 import { Bell, BellOff, Star, Trophy, Search, Filter, RefreshCw, ChevronRight, Clock, Info, CheckCircle2, TrendingUp, Sparkles, Folder } from "lucide-react";
 
 import { z } from "zod";
@@ -10,16 +10,18 @@ import { DateStrip } from "@/components/DateStrip";
 import { LeagueGroup, groupFixtures } from "@/components/LeagueGroup";
 import { MatchCard } from "@/components/MatchCard";
 import { HighlightsSlider } from "@/components/HighlightsSlider";
-import { BingaoClosurePanel } from "@/components/BingaoClosurePanel";
-import { BetaPanel } from "@/components/BetaPanel";
-import { RadarPanel } from "@/components/RadarPanel";
-import { ArtilheirosPanel } from "@/components/ArtilheirosPanel";
-import { EspeciaisBetanoPanel } from "@/components/EspeciaisBetanoPanel";
-import { LotecaPanel } from "@/components/LotecaPanel";
-import { AutoTicketsPanel } from "@/components/AutoTicketsPanel";
-import { MultiplasPanel } from "@/components/MultiplasPanel";
-import { MelhoresJogosPanel } from "@/components/MelhoresJogosPanel";
-import { DiagnosticoPanel } from "@/components/DiagnosticoPanel";
+// Painéis pesados só entram no bundle quando a aba correspondente é aberta.
+const BingaoClosurePanel = lazy(() => import("@/components/BingaoClosurePanel").then((m) => ({ default: m.BingaoClosurePanel })));
+const BetaPanel = lazy(() => import("@/components/BetaPanel").then((m) => ({ default: m.BetaPanel })));
+const RadarPanel = lazy(() => import("@/components/RadarPanel").then((m) => ({ default: m.RadarPanel })));
+const ArtilheirosPanel = lazy(() => import("@/components/ArtilheirosPanel").then((m) => ({ default: m.ArtilheirosPanel })));
+const EspeciaisBetanoPanel = lazy(() => import("@/components/EspeciaisBetanoPanel").then((m) => ({ default: m.EspeciaisBetanoPanel })));
+const LotecaPanel = lazy(() => import("@/components/LotecaPanel").then((m) => ({ default: m.LotecaPanel })));
+const AutoTicketsPanel = lazy(() => import("@/components/AutoTicketsPanel").then((m) => ({ default: m.AutoTicketsPanel })));
+const MultiplasPanel = lazy(() => import("@/components/MultiplasPanel").then((m) => ({ default: m.MultiplasPanel })));
+const MelhoresJogosPanel = lazy(() => import("@/components/MelhoresJogosPanel").then((m) => ({ default: m.MelhoresJogosPanel })));
+const DiagnosticoPanel = lazy(() => import("@/components/DiagnosticoPanel").then((m) => ({ default: m.DiagnosticoPanel })));
+
 import { saveScanPredictions, loadScanPredictions } from "@/lib/scan-cache.functions";
 import { LoadingList, EmptyState } from "@/components/StateViews";
 import { useActiveSection } from "@/lib/active-section";
@@ -87,8 +89,20 @@ export const Route = createFileRoute("/")({
       }),
     }],
   }),
+  // Dispara os selos já salvos assim que a rota começa a carregar (sem bloquear a tela
+  // e sem gastar API) — quando os cartões aparecem, os selos já estão prontos.
+  loader: ({ context }) => {
+    if (typeof window === "undefined") return;
+    const qc = (context as { queryClient?: import("@tanstack/react-query").QueryClient }).queryClient;
+    void qc?.prefetchQuery({
+      queryKey: ["scan-snapshot", "hydrate"],
+      queryFn: () => loadScanPredictions(),
+      staleTime: 5 * 60_000,
+    });
+  },
   component: TodosPage,
 });
+
 
 type FilterId = "live" | "upcoming" | "next3h" | "finished";
 const FILTERS: readonly { id: FilterId; label: string }[] = [
@@ -525,16 +539,19 @@ function TodosPage() {
           </div>
         </div>
       )}
-      {folder === "bingao" && <BingaoClosurePanel />}
-      {folder === "loteca" && <LotecaPanel />}
-      {folder === "radar" && <div className="px-3 pb-8"><RadarPanel isTab /></div>}
-      {folder === "beta" && <BetaPanel />}
-      {folder === "especiais-betano" && <EspeciaisBetanoPanel />}
-      {folder === "auditoria" && <AutoTicketsPanel />}
-      {folder === "multiplas" && <MultiplasPanel />}
-      {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
-      {activeSection === "artilheiros" && <ArtilheirosPanel />}
-      {activeSection === "melhores" && <MelhoresJogosPanel />}
+      <Suspense fallback={<div className="px-3 pb-8"><LoadingList /></div>}>
+        {folder === "bingao" && <BingaoClosurePanel />}
+        {folder === "loteca" && <LotecaPanel />}
+        {folder === "radar" && <div className="px-3 pb-8"><RadarPanel isTab /></div>}
+        {folder === "beta" && <BetaPanel />}
+        {folder === "especiais-betano" && <EspeciaisBetanoPanel />}
+        {folder === "auditoria" && <AutoTicketsPanel />}
+        {folder === "multiplas" && <MultiplasPanel />}
+        {folder === "diagnostico" && <div className="px-3 pb-10"><DiagnosticoPanel /></div>}
+        {activeSection === "artilheiros" && <ArtilheirosPanel />}
+        {activeSection === "melhores" && <MelhoresJogosPanel />}
+      </Suspense>
+
       {!folder && activeSection !== "artilheiros" && activeSection !== "melhores" && (
         <>
           <div role="tablist" aria-label="Filtrar jogos" className="flex gap-1.5 overflow-x-auto scrollbar-none px-3 pb-3">

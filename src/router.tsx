@@ -19,8 +19,12 @@ export const getRouter = () => {
     routeTree,
     context: { queryClient },
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    // Pré-carrega a página assim que o dedo/mouse encosta no link → troca de tela sem espera.
+    defaultPreload: "intent",
+    defaultPreloadDelay: 40,
+    defaultPreloadStaleTime: 30_000,
   });
+
 
   return router;
 };

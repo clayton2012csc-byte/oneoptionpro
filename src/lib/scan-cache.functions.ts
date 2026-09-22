@@ -103,7 +103,24 @@ export const loadScanPredictions = createServerFn({ method: "GET" }).handler(asy
     const f = row.features as unknown as ScanPrediction | null;
     if (!f || typeof f !== "object") continue;
     seen.add(id);
-    out.push({ ...f, fixtureId: id, picks: toBadgePicks(f.picks) });
+    // Envia só o que o selo usa — payload enxuto = tela preenchida mais rápido.
+    out.push({
+      fixtureId: id,
+      pUnder15: f.pUnder15,
+      pOver15: f.pOver15,
+      pUnder25: f.pUnder25,
+      pOver25: f.pOver25,
+      pBTTS: f.pBTTS,
+      pNoBTTS: f.pNoBTTS,
+      pCornersOver95: f.pCornersOver95,
+      bestMarket: f.bestMarket,
+      bestProb: f.bestProb,
+      topMarkets: f.topMarkets,
+      kickoff: f.kickoff,
+      picks: toBadgePicks(f.picks),
+      pillarContext: f.pillarContext,
+    });
   }
   return out;
 });
+
