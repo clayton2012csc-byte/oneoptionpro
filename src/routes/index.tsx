@@ -89,8 +89,20 @@ export const Route = createFileRoute("/")({
       }),
     }],
   }),
+  // Dispara os selos já salvos assim que a rota começa a carregar (sem bloquear a tela
+  // e sem gastar API) — quando os cartões aparecem, os selos já estão prontos.
+  loader: ({ context }) => {
+    if (typeof window === "undefined") return;
+    const qc = (context as { queryClient?: import("@tanstack/react-query").QueryClient }).queryClient;
+    void qc?.prefetchQuery({
+      queryKey: ["scan-snapshot", "hydrate"],
+      queryFn: () => loadScanPredictions(),
+      staleTime: 5 * 60_000,
+    });
+  },
   component: TodosPage,
 });
+
 
 type FilterId = "live" | "upcoming" | "next3h" | "finished";
 const FILTERS: readonly { id: FilterId; label: string }[] = [
