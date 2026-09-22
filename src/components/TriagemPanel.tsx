@@ -10,6 +10,8 @@ import { TRIAGEM_LABEL, type TriagemMarket } from "@/lib/triagem-engine";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TriagemCertificacaoPanel } from "@/components/TriagemCertificacaoPanel";
 import { TriagemEvolucaoPanel } from "@/components/TriagemEvolucaoPanel";
+import { TriagemRelatorioPanel } from "@/components/TriagemRelatorioPanel";
+import { TriagemAuditoriaPanel } from "@/components/TriagemAuditoriaPanel";
 
 function pct(n: number) {
   return `${Math.round(n * 100)}%`;
@@ -19,11 +21,11 @@ function pct1(n: number) {
   return `${(n * 100).toFixed(1)}%`;
 }
 
-/** Filtro de Elite: só a colheita de maior confiança entra no quadro. */
-const ELITE_MIN = 60;
+/** Filtro de Elite: alinhado ao crivo de publicação da Triagem (nota ≥ 75). */
+const ELITE_MIN = 75;
 
-/** Mercado destacado do dia no quadro da triagem. */
-const FEATURED: TriagemMarket = "placar_exato";
+/** Mercado destacado do dia no quadro da triagem — o de melhor assertividade. */
+const FEATURED: TriagemMarket = "over_1_5";
 
 function AccBadge({ accuracy, n }: { accuracy: number; n: number }) {
   if (!n) return null;
@@ -106,6 +108,8 @@ export function TriagemPanel() {
           <TabsTrigger value="publicados">Publicados</TabsTrigger>
           <TabsTrigger value="certificacao">Certificação</TabsTrigger>
           <TabsTrigger value="evolucao">Evolução Diária</TabsTrigger>
+          <TabsTrigger value="relatorio">Relatório de Mercados</TabsTrigger>
+          <TabsTrigger value="auditoria">Auditoria</TabsTrigger>
         </TabsList>
         <TabsContent value="publicados">
           {q.isLoading && <p className="text-sm text-muted-foreground">Carregando triagem…</p>}
@@ -156,7 +160,7 @@ export function TriagemPanel() {
                       if (elite.length === 0) {
                         return (
                           <div className="px-3 py-3 text-[11px] text-danger-foreground">
-                            Nenhum jogo com a nota de elite (Confidence Score ≥ 60) passou neste
+                            Nenhum jogo com a nota de elite (Confidence Score ≥ 75) passou neste
                             mercado.
                           </div>
                         );
@@ -194,6 +198,12 @@ export function TriagemPanel() {
         </TabsContent>
         <TabsContent value="evolucao">
           <TriagemEvolucaoPanel />
+        </TabsContent>
+        <TabsContent value="relatorio">
+          <TriagemRelatorioPanel />
+        </TabsContent>
+        <TabsContent value="auditoria">
+          <TriagemAuditoriaPanel />
         </TabsContent>
       </Tabs>
     </div>

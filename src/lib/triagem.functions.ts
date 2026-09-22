@@ -45,3 +45,27 @@ export const runTriagemGrading = createServerFn({ method: "POST" }).handler(asyn
     return { graded: 0 };
   }
 });
+
+/** Lê as avaliações da Triagem de uma lista de jogos (9 mercados) — fonte única para cards/selos. */
+export const getTriagemByFixtures = createServerFn({ method: "POST" })
+  .inputValidator((d: { ids: number[] }) => ({ ids: (d?.ids ?? []).map(Number) }))
+  .handler(async ({ data }) => {
+    const { triagemByFixtures } = await import("./triagem.server");
+    try {
+      return await triagemByFixtures(data.ids);
+    } catch (e) {
+      console.warn("[triagem] leitura por fixtures indisponível:", (e as Error).message);
+      return [];
+    }
+  });
+
+/** Lê TODAS as triagens dos jogos das próximas 24h — pré-carga no login. */
+export const getProximas24hSelos = createServerFn({ method: "POST" }).handler(async () => {
+  const { proximas24hTriagem } = await import("./triagem.server");
+  try {
+    return await proximas24hTriagem();
+  } catch (e) {
+    console.warn("[triagem] pré-carga 24h indisponível:", (e as Error).message);
+    return [];
+  }
+});

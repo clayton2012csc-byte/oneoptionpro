@@ -11,6 +11,7 @@ import { LIVE_STATUSES, FINISHED_STATUSES, getBingaoOdds, type ApiFixture, getMa
 import { setSelectedFixture, isDesktopThreeCol, useSelectedFixture } from "@/lib/selected-fixture";
 import { usePinnedSections } from "@/lib/pinned-sections";
 import { useMarketFilter } from "@/lib/market-filter";
+import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { autoTicketStatus } from "@/lib/auto-tickets.functions";
 import { AiPickBadges } from "@/components/AiPickBadges";
@@ -392,17 +393,53 @@ function ProbabilityBadge({ fixture, isSelected }: { fixture: ApiFixture; isSele
     enabled: !!isSelected && (market === "none" || !predictions.some(p => p.fixtureId === fixture.fixture.id)),
   });
 
+  const triagemOverlay = useTriagemView((s) => s.byFixture[fixture.fixture.id]);
+
   const pred = useMemo(() => {
     // Mescla predições da varredura atual e das persistidas
     const saved = predictions.find(p => p.fixtureId === fixture.fixture.id);
     const persisted = persistedPredictions.find(p => p.fixtureId === fixture.fixture.id);
     
+    let base: any = null;
     if (saved || persisted) {
-      return { ...(persisted || {}), ...(saved || {}), ready: true } as any;
+      base = { ...(persisted || {}), ...(saved || {}), ready: true };
+    } else if (data) {
+      base = { ...computeOwnPrediction(data.home, data.away), ready: true };
     }
-    
-    return data ? { ...computeOwnPrediction(data.home, data.away), ready: true } : null;
-  }, [data, predictions, persistedPredictions, fixture.fixture.id]);
+    if (!base) return null;
+
+    // A Triagem é a fonte de verdade: quando existe, sobrepõe as probabilidades
+    // exibidas com os números avaliados pela Triagem (mesmos modelos, crivo aplicado).
+    if (triagemOverlay?.markets?.length) {
+      const find = (m: string) =>
+        triagemOverlay.markets.find(
+          (x) =>
+            x.market_type === m &&
+            x.passed &&
+            x.status === "pending" &&
+            x.score >= triagemMinFor(m),
+        );
+      const pUnder15 = find("under_1_5")?.probability;
+      const pOver15 = find("over_1_5")?.probability;
+      const pUnder25 = find("under_1_5")?.probability;
+      const pOver25 = find("over_1_5")?.probability;
+      const pBTTS = find("ambas_sim")?.probability;
+      const pNoBTTS = find("ambas_nao")?.probability;
+      // corners não fazem parte da triagem → mantém o valor original.
+      return {
+        ...base,
+        pUnder15: pUnder15 ?? base.pUnder15,
+        pOver15: pOver15 ?? base.pOver15,
+        pUnder25: pUnder25 ?? base.pUnder25,
+        pOver25: pOver25 ?? base.pOver25,
+        pBTTS: pBTTS ?? base.pBTTS,
+        pNoBTTS: pNoBTTS ?? base.pNoBTTS,
+        ready: true,
+      } as any;
+    }
+    return base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, predictions, persistedPredictions, fixture.fixture.id, triagemOverlay]);
 
   if (!pred || !pred.ready) return null;
 

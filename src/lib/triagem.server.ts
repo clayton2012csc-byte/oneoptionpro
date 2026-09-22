@@ -3,8 +3,11 @@
  * Cada mercado tem estatística própria; a conferência de um não mexe no outro.
  */
 import {
+  TRIAGEM_LABEL,
   TRIAGEM_MARKETS,
   gradeTriagem,
+  MIN_SCORE,
+  MIN_SCORE_BY_MARKET,
   type TriagemEval,
   type TriagemMarket,
   type TriagemMatchData,
@@ -279,6 +282,10 @@ export interface TriagemEvolucaoMarket {
   greens: number;
   reds: number;
   accuracy: number;
+  avgScore: number; // nota média dos publicados no período
+  highAcc: number; // acurácia só dos conferidos com nota >= 90 (0 se highN=0)
+  highN: number; // conferidos (green+red) com nota >= 90
+  minScore: number; // mínimo exigido pelo crivo do mercado
   trend: TriagemEvolucaoDay[]; // últimos 14 dias com volume>0 ou acc
 }
 
@@ -294,7 +301,7 @@ export interface TriagemEvolucao {
 export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   const { rows: raw, missing } = await fetchAllRows(
-    "id, fixture_id, market_type, passed, status, created_at, kickoff",
+    "id, fixture_id, market_type, passed, status, score_confidence, created_at, kickoff",
     (q) => q.gte("created_at", since),
   );
   if (missing) {
@@ -307,13 +314,17 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
     market_type: TriagemMarket;
     passed: boolean;
     status: string;
+    score_confidence: number;
     created_at: string;
     kickoff: string | null;
   }>;
 
   const byDay = new Map<string, TriagemEvolucaoDay>();
   const fixturesPerDay = new Map<string, Set<number>>();
-  const marketBuckets = new Map<TriagemMarket, { g: number; r: number; v: number }>();
+  const marketBuckets = new Map<
+    TriagemMarket,
+    { g: number; r: number; v: number; sumScore: number; highG: number; highR: number }
+  >();
   const marketByDay = new Map<string, Map<TriagemMarket, { g: number; r: number; v: number }>>();
   let totalPublished = 0;
   let totalGreens = 0;
@@ -349,10 +360,17 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
       } else if (r.status === "pending") {
         day.pending++;
       }
-      const mb = marketBuckets.get(r.market_type) ?? { g: 0, r: 0, v: 0 };
+      const mb =
+        marketBuckets.get(r.market_type) ?? { g: 0, r: 0, v: 0, sumScore: 0, highG: 0, highR: 0 };
       mb.v++;
-      if (r.status === "green") mb.g++;
-      else if (r.status === "red") mb.r++;
+      mb.sumScore += r.score_confidence;
+      if (r.status === "green") {
+        mb.g++;
+        if (r.score_confidence >= 90) mb.highG++;
+      } else if (r.status === "red") {
+        mb.r++;
+        if (r.score_confidence >= 90) mb.highR++;
+      }
       marketBuckets.set(r.market_type, mb);
 
       let mds = marketByDay.get(date);
@@ -379,7 +397,7 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
   }
 
   const markets: TriagemEvolucaoMarket[] = TRIAGEM_MARKETS.map((market) => {
-    const b = marketBuckets.get(market) ?? { g: 0, r: 0, v: 0 };
+    const b = marketBuckets.get(market) ?? { g: 0, r: 0, v: 0, sumScore: 0, highG: 0, highR: 0 };
     const trend: TriagemEvolucaoDay[] = dayList.slice(-14).map((d) => {
       const m = marketByDay.get(d.date)?.get(market);
       const g = m?.g ?? 0;
@@ -394,12 +412,17 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
       };
     });
     const n = b.g + b.r;
+    const hN = b.highG + b.highR;
     return {
       market,
       volume: b.v,
       greens: b.g,
       reds: b.r,
       accuracy: n ? b.g / n : 0,
+      avgScore: b.v ? Math.round((b.sumScore / b.v) * 10) / 10 : 0,
+      highAcc: hN ? b.highG / hN : 0,
+      highN: hN,
+      minScore: MIN_SCORE_BY_MARKET[market] ?? MIN_SCORE,
       trend,
     };
   });
@@ -414,39 +437,186 @@ export async function triagemEvolucao(days = 60): Promise<TriagemEvolucao> {
   };
 }
 
-// ───────────────────── Conferência de pendentes (backlog) ─────────────────────
+// ───────────────────── Leituras por fixture (cards/selos) ─────────────────────
+
+export interface TriagemMarketBadge {
+  market_type: TriagemMarket;
+  label: string;
+  selection: string;
+  probability: number;
+  score: number;
+  passed: boolean;
+  status: "pending" | "green" | "red" | "void";
+}
+
+export interface TriagemFixtureView {
+  fixtureId: number;
+  matchName: string;
+  markets: TriagemMarketBadge[];
+}
+
+/**
+ * Lê as avaliações da Triagem de uma lista de jogos (9 mercados cada).
+ * Usado para preencher selos e notas nos cards de TODAS as abas — a Triagem é a
+ * fonte de verdade e aqui ela é entregue ao front-end sem nova varredura.
+ */
+export async function triagemByFixtures(ids: number[]): Promise<TriagemFixtureView[]> {
+  const clean = [...new Set(ids.map(Number).filter((n) => Number.isFinite(n) && n > 0))].sort((a, b) => a - b);
+  if (!clean.length) return [];
+  const t = await table();
+  const out = new Map<number, TriagemFixtureView>();
+  for (let i = 0; i < clean.length; i += 400) {
+    const { data, error } = await t
+      .select("fixture_id, match_name, market_type, predicted_value, probability, score_confidence, passed, status")
+      .in("fixture_id", clean.slice(i, i + 400));
+    if (error) {
+      if (missingTable(error)) return [];
+      throw new Error(error.message);
+    }
+    for (const r of data ?? []) {
+      const id = Number(r.fixture_id);
+      let view = out.get(id);
+      if (!view) {
+        view = { fixtureId: id, matchName: r.match_name ?? "", markets: [] };
+        out.set(id, view);
+      }
+      view.markets.push({
+        market_type: r.market_type as TriagemMarket,
+        label: TRIAGEM_LABEL[r.market_type as TriagemMarket] ?? r.market_type,
+        selection: r.predicted_value,
+        probability: Number(r.probability),
+        score: Number(r.score_confidence),
+        passed: Boolean(r.passed),
+        status: r.status,
+      });
+    }
+  }
+  return [...out.values()];
+}
+
+/**
+ * Lê TODAS as avaliações da Triagem dos jogos das próximas 24h de uma vez —
+ * usado para pré-carregar os selos no login (abas abrem prontas, zero API).
+ */
+export async function proximas24hTriagem(): Promise<TriagemFixtureView[]> {
+  const now = new Date().toISOString();
+  const end = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const t = await table();
+  const out = new Map<number, TriagemFixtureView>();
+  const PAGE = 1000;
+  for (let from = 0; from < 20_000; from += PAGE) {
+    const { data, error } = await t
+      .select("fixture_id, match_name, market_type, predicted_value, probability, score_confidence, passed, status")
+      .gte("kickoff", now)
+      .lte("kickoff", end)
+      .range(from, from + PAGE - 1);
+    if (error) {
+      if (missingTable(error)) return [];
+      throw new Error(error.message);
+    }
+    const chunk = data ?? [];
+    for (const r of chunk) {
+      const id = Number(r.fixture_id);
+      let view = out.get(id);
+      if (!view) {
+        view = { fixtureId: id, matchName: r.match_name ?? "", markets: [] };
+        out.set(id, view);
+      }
+      view.markets.push({
+        market_type: r.market_type as TriagemMarket,
+        label: TRIAGEM_LABEL[r.market_type as TriagemMarket] ?? r.market_type,
+        selection: r.predicted_value,
+        probability: Number(r.probability),
+        score: Number(r.score_confidence),
+        passed: Boolean(r.passed),
+        status: r.status,
+      });
+    }
+    if (chunk.length < PAGE) break;
+  }
+  return [...out.values()];
+}
 
 /**
  * Confere as triagens de jogos já encerrados usando o placar JÁ salvo em
  * auto_tickets (result_snapshot) — zero requisições à API-Football.
- * Antes, um registro só era conferido se o bilhete do mesmo jogo fosse
- * conferido na mesma execução, o que deixava pendentes órfãos para sempre.
+ * Aceita snapshot de QUALQUER status do auto_ticket (antes só `graded`,
+ * o que deixava órfãs as triagens de jogos com ticket pending/void).
+ * Jogos sem placar salvo em qualquer fonte ficam sem dado → marcados
+ * `void` (dado indisponível) para não ficarem `pending` para sempre.
  */
-export async function gradeTriagemBacklog(maxFixtures = 400): Promise<number> {
+export async function gradeTriagemBacklog(maxFixtures = 800): Promise<number> {
   const cutoff = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
-  const { rows, missing } = await fetchAllRows("fixture_id", (q) =>
+  const { rows, missing } = await fetchAllRows("fixture_id, kickoff", (q) =>
     q.eq("status", "pending").eq("passed", true).lt("kickoff", cutoff),
   );
   if (missing || !rows.length) return 0;
 
-  const ids = [...new Set(rows.map((r) => Number(r.fixture_id)))].slice(0, maxFixtures);
+  // Um mesmo fixture pode ter vários registros pending (vários mercados).
+  const byFixture = new Map<number, number>();
+  for (const r of rows) {
+    const id = Number(r.fixture_id);
+    byFixture.set(id, (byFixture.get(id) ?? 0) + 1);
+  }
+  const ids = [...byFixture.keys()].slice(0, maxFixtures);
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+  const withScore = new Map<number, { h: number; a: number }>();
+  const ticketStatus = new Map<number, string>();
   let done = 0;
+
   for (let i = 0; i < ids.length; i += 100) {
     const slice = ids.slice(i, i + 100);
     const { data } = await supabaseAdmin
       .from("auto_tickets")
-      .select("fixture_id, result_snapshot")
-      .in("fixture_id", slice)
-      .eq("status", "graded");
+      .select("fixture_id, status, result_snapshot")
+      .in("fixture_id", slice);
     for (const row of data ?? []) {
+      const fid = Number(row.fixture_id);
+      ticketStatus.set(fid, String(row.status ?? ""));
       const snap = row.result_snapshot as { home_score?: number; away_score?: number } | null;
       if (!snap || typeof snap.home_score !== "number" || typeof snap.away_score !== "number") {
         continue;
       }
-      done += await gradeTriagemFixture(Number(row.fixture_id), snap.home_score, snap.away_score);
+      withScore.set(fid, { h: snap.home_score, a: snap.away_score });
     }
   }
+
+  // 1) Quem tem placar salvo (qualquer status do ticket) é conferido.
+  for (const id of withScore.keys()) {
+    done += await gradeTriagemFixture(id, withScore.get(id)!.h, withScore.get(id)!.a);
+  }
+
+  // 2) Só anula (dado indisponível) os jogos que REALMENTE não têm caminho:
+  //    ticket já `void` (o pipeline desistiu) OU kickoff há ≥ 12h sem placar
+  //    salvo (não chegou em nenhuma execução). Jogos recentes ficam pending
+  //    para uma futura conferência pegar o placar quando existir.
+  const t = await table();
+  const now = new Date().toISOString();
+  const VOID_KICKOFF_MS = 12 * 60 * 60 * 1000;
+  const kickoffOf = new Map<number, string>();
+  for (const r of rows) kickoffOf.set(Number(r.fixture_id), r.kickoff);
+
+  const orphans = ids.filter((id) => {
+    if (withScore.has(id)) return false;
+    if (ticketStatus.get(id) === "void") return true;
+    const ko = kickoffOf.get(id);
+    if (!ko) return true;
+    return Date.now() - new Date(ko).getTime() > VOID_KICKOFF_MS;
+  });
+
+  for (let i = 0; i < orphans.length; i += 100) {
+    const slice = orphans.slice(i, i + 100);
+    const upd = await t
+      .update({ status: "void", result_score: null, graded_at: now, reason: ["Dado indisponível"] })
+      .eq("status", "pending")
+      .in("fixture_id", slice);
+    if (upd.error) {
+      console.warn("[triagem] falha ao anular órfãos", upd.error.message);
+      continue;
+    }
+    for (const id of slice) done += byFixture.get(id) ?? 0;
+  }
+
   return done;
 }

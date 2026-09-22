@@ -12,6 +12,19 @@ import {
 } from "@/lib/api-football.functions";
 import { usePinnedSections } from "@/lib/pinned-sections";
 import { listFechamentos, saveFechamento, deleteFechamento, type Fechamento } from "@/lib/fechamentos";
+import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
+
+const TRIAGEM_TAG: Record<string, string> = {
+  under_1_5: "U1.5",
+  over_1_5: "O1.5",
+  ambas_sim: "BTTS SIM",
+  ambas_nao: "BTTS NÃO",
+  placar_exato: "PLACAR",
+  casa_vence: "CASA",
+  empate_com_gol: "EMPATE C/GOL",
+  empate_sem_gols: "EMPATE 0X0",
+  visitante_ganha: "FORA",
+};
 
 // ---------- Poisson helpers ----------
 function factorial(n: number): number {
@@ -367,6 +380,16 @@ export function BetaPanel() {
       ? Math.round((statsLoaded / Math.max(1, statsTotal)) * 100)
       : phase === "ready" ? 100 : 0;
 
+  // Triagem = fonte de verdade: mostra os selos/notas da Triagem junto aos jogos.
+  const triagemViews = useTriagemView((s) => s.byFixture);
+  const triagemSelosDe = (id: number) => {
+    const view = triagemViews[id];
+    if (!view) return null;
+    return view.markets.filter(
+      (m) => m.passed && m.status === "pending" && m.score >= triagemMinFor(m.market_type),
+    );
+  };
+
   return (
     <div className="mx-3 mb-6 rounded-[2.5rem] bg-gradient-to-br from-cyan-500/15 via-card to-card border border-cyan-500/30 overflow-hidden shadow-2xl relative group animate-in fade-in slide-in-from-bottom-4 duration-700">
       <div className="absolute inset-0 bg-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
@@ -543,6 +566,7 @@ export function BetaPanel() {
               {enriched.map((e) => {
                 const s = scoreOf(e);
                 const isSelected = selected.some((x) => x.id === e.id);
+                const triSelos = triagemSelosDe(e.id);
                 let statusText: string;
                 let statusColor: string;
                 if (isSelected) { statusText = "SELECIONADO"; statusColor = "text-cyan-400"; }
@@ -556,6 +580,19 @@ export function BetaPanel() {
                       <div className="flex-1 min-w-0 truncate font-medium">
                         {e.fixture ? `${e.fixture.teams.home.name} × ${e.fixture.teams.away.name}` : `Fixture ${e.id}`}
                       </div>
+                      {triSelos && triSelos.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {triSelos.slice(0, 3).map((s2) => (
+                            <span
+                              key={s2.market_type}
+                              title={`Triagem · ${s2.label} · ★${s2.score}`}
+                              className="px-1 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black"
+                            >
+                              ✓ {TRIAGEM_TAG[s2.market_type] ?? s2.market_type} ★{s2.score}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       <span className={`text-[10px] font-bold ${statusColor}`}>{statusText}</span>
                     </div>
                     {e.ready && (
@@ -582,16 +619,32 @@ export function BetaPanel() {
               </div>
             )}
             <div className="space-y-1">
-              {selected.map((e, idx) => (
-                <div key={e.id} className="flex items-center gap-2 text-xs bg-black/30 rounded-lg px-2 py-1.5">
-                  <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold flex items-center justify-center">J{idx + 1}</span>
-                  <div className="flex-1 min-w-0 truncate">
-                    {e.fixture ? `${e.fixture.teams.home.name} × ${e.fixture.teams.away.name}` : `Fixture ${e.id}`}
+              {selected.map((e, idx) => {
+                const triSelos = triagemSelosDe(e.id);
+                return (
+                  <div key={e.id} className="flex items-center gap-2 text-xs bg-black/30 rounded-lg px-2 py-1.5">
+                    <span className="w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400 text-[10px] font-bold flex items-center justify-center">J{idx + 1}</span>
+                    <div className="flex-1 min-w-0 truncate">
+                      {e.fixture ? `${e.fixture.teams.home.name} × ${e.fixture.teams.away.name}` : `Fixture ${e.id}`}
+                    </div>
+                    {triSelos && triSelos.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        {triSelos.slice(0, 2).map((s) => (
+                          <span
+                            key={s.market_type}
+                            title={`Triagem · ${s.label} · ★${s.score}`}
+                            className="px-1 rounded bg-emerald-500/20 text-emerald-300 text-[9px] font-black"
+                          >
+                            ✓ {TRIAGEM_TAG[s.market_type] ?? s.market_type} ★{s.score}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <span className="text-muted-foreground tabular text-[10px]">λ {e.lambdaTotal.toFixed(2)}</span>
+                    <span className="text-cyan-400 font-bold tabular">{Math.round(scoreOf(e) * 100)}%</span>
                   </div>
-                  <span className="text-muted-foreground tabular text-[10px]">λ {e.lambdaTotal.toFixed(2)}</span>
-                  <span className="text-cyan-400 font-bold tabular">{Math.round(scoreOf(e) * 100)}%</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

@@ -13,6 +13,7 @@ import {
   Bar,
   Line,
   LineChart,
+  ReferenceLine,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -30,8 +31,16 @@ const SLATE = "#94a3b8";
 
 const WINDOWS = [7, 15, 30, 60];
 
+/** Meta de assertividade: a partir dela o mercado é considerado consistente. */
+const TARGET_ACC = 0.7;
+
 function pct(n: number) {
   return `${Math.round(n * 100)}%`;
+}
+
+function fmtDDMM(iso: string): string {
+  const [, m, d] = iso.split("-");
+  return `${d}/${m}`;
 }
 
 function ma<T extends { accuracy: number }>(data: T[], k: number): Array<T & { ma7: number }> {
@@ -41,6 +50,36 @@ function ma<T extends { accuracy: number }>(data: T[], k: number): Array<T & { m
     const v = slice.reduce((a, b) => a + b.accuracy, 0) / slice.length;
     return { ...d, ma7: Math.round(v * 1000) / 1000 };
   });
+}
+
+/** Dia agregado exibido nos gráficos (já formatado para dd/mm e com a média móvel). */
+type EvoDay = {
+  date: string;
+  analyzed: number;
+  published: number;
+  greens: number;
+  reds: number;
+  pending: number;
+  accuracy: number;
+  ma7: number;
+  accPct: number;
+};
+
+/** Tooltip comum aos gráficos: mostra volume, verdes/vermelhos e assertividade do dia. */
+function EvoTooltip({ active, payload }: { active?: boolean; payload?: unknown[] }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0] as { payload: EvoDay };
+  const day = d.payload;
+  return (
+    <div className="rounded-xl border border-white/10 bg-black/85 px-3 py-2 text-[11px] shadow-xl">
+      <div className="font-bold">{day.date}</div>
+      <div className="text-muted-foreground">
+        Publicados: {day.published} · Verdes {day.greens}G / Vermelhos {day.reds}R
+      </div>
+      <div className="text-emerald-400">Assertividade {day.accPct}%</div>
+      <div className="text-amber-400">Média 7d {Math.round((day.ma7 ?? 0) * 100)}%</div>
+    </div>
+  );
 }
 
 export function TriagemEvolucaoPanel() {
@@ -63,7 +102,7 @@ export function TriagemEvolucaoPanel() {
   const evo = q.data;
   const daily = ma(evo?.days ?? [], 7).map((d) => ({
     ...d,
-    date: d.date.slice(5),
+    date: fmtDDMM(d.date),
     accPct: Math.round(d.accuracy * 100),
   }));
 
@@ -111,6 +150,32 @@ export function TriagemEvolucaoPanel() {
 
       {!q.isLoading && evo && (
         <>
+          {(() => {
+            const first = daily[0];
+            const last = daily[daily.length - 1];
+            if (!first || !last || daily.length < 2) return null;
+            const delta = last.accPct - first.accPct;
+            const Icon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
+            const tone =
+              delta > 0
+                ? "text-emerald-400"
+                : delta < 0
+                  ? "text-red-400"
+                  : "text-muted-foreground";
+            return (
+              <div className="glass rounded-2xl border border-white/10 px-3 py-2.5 flex items-center gap-2">
+                <Icon className={`w-4 h-4 shrink-0 ${tone}`} />
+                <div className="text-[11px] text-muted-foreground">
+                  <b>
+                    Início {first.accPct}% → Fim {last.accPct}%
+                  </b>
+                  <span className={tone}> ({delta > 0 ? "+" : ""}{delta} pts)</span>
+                  <span className="hidden md:inline"> no período de {daily.length} dias</span>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-2.5">
               <div className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -167,15 +232,14 @@ export function TriagemEvolucaoPanel() {
                         domain={[0, 1]}
                         tickFormatter={(v) => `${Math.round(v * 100)}%`}
                       />
-                      <Tooltip
-                        formatter={(v) => [`${Math.round((v as number) * 100)}%`, "assertividade"]}
-                        contentStyle={{
-                          background: "rgba(0,0,0,0.85)",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          borderRadius: 12,
-                          fontSize: 11,
-                        }}
+                      <ReferenceLine
+                        y={TARGET_ACC}
+                        stroke={SLATE}
+                        strokeDasharray="4 4"
+                        strokeOpacity={0.7}
+                        label={{ value: "meta 70%", position: "insideTopRight", fill: SLATE, fontSize: 10 }}
                       />
+                      <Tooltip content={<EvoTooltip />} />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
                       <Area
                         type="monotone"
@@ -210,16 +274,7 @@ export function TriagemEvolucaoPanel() {
                       <XAxis dataKey="date" tick={{ fill: SLATE, fontSize: 10 }} minTickGap={24} />
                       <YAxis tick={{ fill: SLATE, fontSize: 10 }} allowDecimals={false} />
                       <Tooltip
-                        formatter={(v, n) => [
-                          String(v),
-                          n === "greens" ? "verdes" : n === "reds" ? "vermelhos" : String(n),
-                        ]}
-                        contentStyle={{
-                          background: "rgba(0,0,0,0.85)",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          borderRadius: 12,
-                          fontSize: 11,
-                        }}
+                        content={<EvoTooltip />}
                       />
                       <Legend wrapperStyle={{ fontSize: 10 }} />
                       <Bar

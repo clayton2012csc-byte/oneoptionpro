@@ -16,6 +16,7 @@ import { LiveScannerProvider } from "@/lib/live-scanner";
 import { getPublicConfigFn } from "@/lib/public-config.functions";
 import { isSupabaseConfigured, setPublicConfig } from "@/lib/public-config";
 import { usePersistedQueryCache } from "@/lib/query-persist";
+import { preloadSelos24h } from "@/lib/triagem-view";
 
 function NotFoundComponent() {
   return (
@@ -163,9 +164,22 @@ function RootComponent() {
       if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") void preloadSelos24h();
     });
     return () => sub.subscription.unsubscribe();
   }, [router, queryClient]);
+
+  // Logado já no primeiro render (reload de página autenticada): pré-carrega os selos 24h.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (data.user) await preloadSelos24h();
+      } catch {
+        /* pré-carga é best-effort */
+      }
+    })();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

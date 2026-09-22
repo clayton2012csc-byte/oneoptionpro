@@ -1,8 +1,9 @@
 import { useMarketFilter } from "@/lib/market-filter";
 import { useSelectedFixture } from "@/lib/selected-fixture";
 import { pctFmt } from "@/lib/own-prediction";
-import { BrainCircuit, Sparkles } from "lucide-react";
+import { BrainCircuit, ShieldCheck, Sparkles } from "lucide-react";
 import { memo, useMemo } from "react";
+import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
 
 const EXACT_MARKET = "Placar Exato Seco";
 
@@ -44,9 +45,35 @@ function shortPick(market: string, selection: string): string | null {
   return s.length > 22 ? `${s.slice(0, 21)}…` : s;
 }
 
+const TRIAGEM_SHORT: Record<string, string> = {
+  under_1_5: "U1.5",
+  over_1_5: "O1.5",
+  ambas_sim: "BTTS SIM",
+  ambas_nao: "BTTS NÃO",
+  placar_exato: "PLACAR",
+  casa_vence: "CASA",
+  empate_com_gol: "EMPATE C/GOL",
+  empate_sem_gols: "EMPATE 0X0",
+  visitante_ganha: "FORA",
+};
+
+/** Rótulo curto a partir do market_type da triagem. */
+function triagemTag(marketType: string): string {
+  return TRIAGEM_SHORT[marketType] ?? marketType.toUpperCase();
+}
+
 function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
   const { market, predictions, persistedPredictions } = useMarketFilter();
   const isSelected = useSelectedFixture() === fixtureId;
+  const triagemView = useTriagemView((s) => s.byFixture[fixtureId]);
+
+  const triagemSelos = useMemo(() => {
+    if (market !== "none" || !triagemView) return null;
+    const list = triagemView.markets
+      .filter((m) => m.passed && m.status === "pending" && m.score >= triagemMinFor(m.market_type))
+      .sort((a, b) => b.score - a.score);
+    return list.length ? list : null;
+  }, [market, triagemView]);
 
   const view = useMemo(() => {
     if (market !== "none") return null;
@@ -58,8 +85,13 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
     return { picks: list, ctx: src?.pillarContext };
   }, [market, predictions, persistedPredictions, fixtureId]);
 
-  if (!view) return null;
-  const { picks, ctx } = view;
+  const triagem = triagemSelos;
+  if (!triagem && !view) return null;
+
+  const picks = triagem
+    ? []
+    : view!.picks;
+  const ctx = view?.ctx;
 
   const ctxLine = (() => {
     const parts: string[] = [];
@@ -71,49 +103,91 @@ function AiPickBadgesInner({ fixtureId }: { fixtureId: number }) {
 
   return (
     <div className="absolute top-16 right-0 flex flex-col items-end gap-1.5 z-20 pointer-events-none">
-      {picks.map((o, idx) => {
-        const isExact = o.market === EXACT_MARKET;
-        const highlight = isExact || isSelected;
-        const showScore = typeof o.score === "number";
-        return (
-          <div
-            key={isExact ? EXACT_MARKET : `${o.market}-${idx}`}
-            className={`backdrop-blur-md border-l border-b border-t px-3 py-1 rounded-l-xl flex items-center gap-2 shadow-2xl transition-all duration-300 transform group-hover:translate-x-0 translate-x-1 ${
-              highlight
-                ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_16px_rgba(234,88,12,0.4)]"
-                : "bg-black/60 border-white/10 text-primary"
-            }`}
-          >
-            <div className="flex flex-col items-end leading-none">
-              <span className={`text-[7px] font-black uppercase tracking-[0.15em] ${highlight ? "text-white/70" : "text-primary/70"}`}>
-                {isExact ? `IA INDICADO • PLACAR EXATO` : shortLabel(o.market, o.selection)}
-              </span>
-              <span className={`text-[11px] font-black tabular mt-0.5 ${highlight ? "text-white" : "text-white"}`}>
-                {isExact
-                  ? `${o.selection} · ${pct(o.prob)}`
-                  : (() => {
-                      const p = shortPick(o.market, o.selection);
-                      return p ? `${p} · ${pct(o.prob)}` : pct(o.prob);
-                    })()}
-                {showScore ? (
-                  <span
-                    title={`Confiança 5 Pilares · mín. ${o.score}%`}
-                    className={`ml-1.5 px-1 rounded text-[8px] font-black align-middle ${
-                      o.elite ? "bg-emerald-400 text-black" : "bg-white/20 text-white/80"
-                    }`}
-                  >
-                    ★{o.score}
+      {triagem
+        ? triagem.map((o, idx) => {
+            const highlight = idx === 0 || isSelected;
+            return (
+              <div
+                key={`triagem-${o.market_type}`}
+                className={`backdrop-blur-md border-l border-b border-t px-3 py-1 rounded-l-xl flex items-center gap-2 shadow-2xl transition-all duration-300 transform group-hover:translate-x-0 translate-x-1 ${
+                  highlight
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-[0_0_16px_rgba(16,185,129,0.4)]"
+                    : "bg-black/60 border-white/10 text-primary"
+                }`}
+              >
+                <div className="flex flex-col items-end leading-none">
+                  <span className={`text-[7px] font-black uppercase tracking-[0.15em] ${highlight ? "text-white/70" : "text-primary/70"}`}>
+                    ✓ TRIAGEM · {triagemTag(o.market_type)}
+                    {triagem.length > 1 && (
+                      <span
+                        title={`${triagem.length} mercados correlacionados neste jogo — 1 erro derruba a leitura`}
+                        className="ml-1 px-1 rounded bg-amber-400/90 text-black"
+                      >
+                        +{triagem.length - 1} ⚠
+                      </span>
+                    )}
                   </span>
-                ) : null}
-              </span>
-            </div>
-            <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${highlight ? "bg-white/20" : "bg-primary/20"}`}>
-              {isExact ? <Sparkles className="w-3.5 h-3.5" /> : <BrainCircuit className="w-3.5 h-3.5" />}
-            </div>
-          </div>
-        );
-      })}
-      {ctxLine ? (
+                  <span className={`text-[11px] font-black tabular mt-0.5 ${highlight ? "text-white" : "text-white"}`}>
+                    {o.selection} · {pct(o.probability)}
+                    <span
+                      title={`Nota Triagem · mínimo por mercado (75 | 95 em placar/empates)`}
+                      className={`ml-1.5 px-1 rounded text-[8px] font-black align-middle ${
+                        highlight ? "bg-white/25 text-white" : "bg-emerald-400/80 text-black"
+                      }`}
+                    >
+                      ★{o.score}
+                    </span>
+                  </span>
+                </div>
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${highlight ? "bg-white/20" : "bg-primary/20"}`}>
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            );
+          })
+        : picks.map((o, idx) => {
+            const isExact = o.market === EXACT_MARKET;
+            const highlight = isExact || isSelected;
+            const showScore = typeof o.score === "number";
+            return (
+              <div
+                key={isExact ? EXACT_MARKET : `${o.market}-${idx}`}
+                className={`backdrop-blur-md border-l border-b border-t px-3 py-1 rounded-l-xl flex items-center gap-2 shadow-2xl transition-all duration-300 transform group-hover:translate-x-0 translate-x-1 ${
+                  highlight
+                    ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_16px_rgba(234,88,12,0.4)]"
+                    : "bg-black/60 border-white/10 text-primary"
+                }`}
+              >
+                <div className="flex flex-col items-end leading-none">
+                  <span className={`text-[7px] font-black uppercase tracking-[0.15em] ${highlight ? "text-white/70" : "text-primary/70"}`}>
+                    {isExact ? `IA INDICADO • PLACAR EXATO` : shortLabel(o.market, o.selection)}
+                  </span>
+                  <span className={`text-[11px] font-black tabular mt-0.5 ${highlight ? "text-white" : "text-white"}`}>
+                    {isExact
+                      ? `${o.selection} · ${pct(o.prob)}`
+                      : (() => {
+                          const p = shortPick(o.market, o.selection);
+                          return p ? `${p} · ${pct(o.prob)}` : pct(o.prob);
+                        })()}
+                    {showScore ? (
+                      <span
+                        title={`Confiança 5 Pilares · mín. ${o.score}%`}
+                        className={`ml-1.5 px-1 rounded text-[8px] font-black align-middle ${
+                          o.elite ? "bg-emerald-400 text-black" : "bg-white/20 text-white/80"
+                        }`}
+                      >
+                        ★{o.score}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${highlight ? "bg-white/20" : "bg-primary/20"}`}>
+                  {isExact ? <Sparkles className="w-3.5 h-3.5" /> : <BrainCircuit className="w-3.5 h-3.5" />}
+                </div>
+              </div>
+            );
+          })}
+      {!triagem && ctxLine ? (
         <div className="max-w-[220px] text-right text-[8px] leading-tight text-white/70 bg-black/50 border border-white/10 rounded px-1.5 py-0.5">
           {ctxLine}
         </div>

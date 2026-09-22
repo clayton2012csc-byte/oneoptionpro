@@ -38,6 +38,21 @@ export const TRIAGEM_LABEL: Record<TriagemMarket, string> = {
 export const MIN_SCORE = 75;
 
 /**
+ * Exigência mínima por mercado (override) — mercados com acerto real baixo
+ * (placar_exato, empate_sem_gols, empate_com_gol) só passam com nota ≥ 95,
+ * o que na prática quase nada passa até o modelo ser recalibrado.
+ */
+export const MIN_SCORE_BY_MARKET: Partial<Record<TriagemMarket, number>> = {
+  placar_exato: 95,
+  empate_com_gol: 95,
+  empate_sem_gols: 95,
+};
+
+function minScore(market: TriagemMarket): number {
+  return MIN_SCORE_BY_MARKET[market] ?? MIN_SCORE;
+}
+
+/**
  * Teto realista de probabilidade por mercado — a nota é a probabilidade
  * do modelo medida contra o melhor que aquele mercado costuma entregar.
  */
@@ -137,7 +152,7 @@ export function evaluateTriagem(pred: OwnPrediction, match: TriagemMatchData): T
     reasons: string[],
   ) => {
     const s = score(market, p);
-    const passed = crivo && s >= MIN_SCORE;
+    const passed = crivo && s >= minScore(market);
     out.push({
       market,
       predicted_value: predicted,
@@ -185,9 +200,10 @@ export function evaluateTriagem(pred: OwnPrediction, match: TriagemMatchData): T
 
   // PLACAR EXATO — placar de maior probabilidade
   const topPct = (top.p * 100).toFixed(1);
+  const placarMin = minScore("placar_exato");
   push("placar_exato", `${top.h}x${top.a}`, top.p, true, [
     `Placar mais provável: ${top.h}x${top.a} (${topPct}%)`,
-    `Nota ≥ ${MIN_SCORE} exige probabilidade ≥ ${(((CEILING.placar_exato * MIN_SCORE) / 100) * 100).toFixed(1)}%`,
+    `Nota ≥ ${placarMin} exige probabilidade ≥ ${(((CEILING.placar_exato * placarMin) / 100) * 100).toFixed(1)}%`,
   ]);
 
   // CASA VENCE — vitória do mandante > 55% e xG mandante > visitante + 0.5

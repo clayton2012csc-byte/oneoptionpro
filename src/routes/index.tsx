@@ -28,6 +28,7 @@ import { usePinnedSections, type SectionId } from "@/lib/pinned-sections";
 import { useFavorites } from "@/lib/favorites";
 import { BackHeader } from "@/components/BackHeader";
 import { useMarketFilter, MarketFilterId } from "@/lib/market-filter";
+import { useTriagemSync } from "@/lib/triagem-view";
 import { getBulkPredictions, ScanPrediction } from "@/lib/bulk-predictions.functions";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Scan } from "lucide-react";
@@ -448,6 +449,13 @@ function TodosPage() {
 
     return list;
   }, [q.data, liveQ.data, filter, folder, pinned, search, predictions, market, scannedFixtures, nowMs]);
+
+  // Triagem = fonte de verdade: puxa os selos/notas da triagem dos jogos em tela.
+  const triagemIds = useMemo(
+    () => filtered.map((f) => f.fixture.id),
+    [filtered],
+  );
+  useTriagemSync(triagemIds);
 
 
   const groups = useMemo(() => {

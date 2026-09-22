@@ -159,6 +159,155 @@ async function callGemini(
   return text;
 }
 
+// ───────────────────── Tool-calling (leitura segura) ─────────────────────
+
+/** Declaração de uma função que o modelo pode chamar (functionDeclarations). */
+export interface ToolDecl {
+  name: string;
+  description: string;
+  parameters?: Record<string, unknown>;
+}
+
+interface GeminiFunctionCallPart {
+  functionCall?: { name: string; args?: Record<string, unknown> };
+}
+
+interface GeminiFunctionResponse {
+  name: string;
+  response: Record<string, unknown>;
+}
+
+export interface GeminiToolCallResult {
+  text: string;
+}
+
+/**
+ * Chat com tool-calling: o modelo pode pedir a execução de funções listadas em
+ * `tools` (só leitura). O chamador decide o que cada função faz via `runTool`.
+ * O resultado é devolvido ao modelo como functionResponse e o texto final é
+ * retornado. Sem streaming (loop de 2–3 rodadas).
+ */
+export async function geminiChatWithTools(opts: {
+  system: string[];
+  messages: ChatMessage[];
+  tools: ToolDecl[];
+  runTool: (name: string, args: Record<string, unknown>) => Promise<string>;
+  temperature?: number;
+  maxOutputTokens?: number;
+  thinkingBudget?: number;
+  timeoutMs?: number;
+}): Promise<string> {
+  const models = [...new Set([getGeminiModel(), ...FALLBACK_MODELS])];
+  let lastError: Error | null = null;
+
+  for (const model of models) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await callGeminiWithTools(model, opts);
+      } catch (e) {
+        lastError = e as Error;
+        if (!/\[(404|429|5\d\d)\]|Muitas requisições|abort|timeout|tempo limite/i.test(lastError.message))
+          throw lastError;
+        if (/\[404\]|Muitas requisições/.test(lastError.message)) break;
+        await sleep(1200 * (attempt + 1));
+      }
+    }
+  }
+  throw new Error(
+    `A IA está temporariamente sobrecarregada. Tente novamente em instantes. (${lastError?.message ?? ""})`.trim(),
+  );
+}
+
+async function callGeminiWithTools(
+  model: string,
+  opts: {
+    system: string[];
+    messages: ChatMessage[];
+    tools: ToolDecl[];
+    runTool: (name: string, args: Record<string, unknown>) => Promise<string>;
+    temperature?: number;
+    maxOutputTokens?: number;
+    thinkingBudget?: number;
+    timeoutMs?: number;
+  },
+): Promise<string> {
+  const key = requireKey();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 120_000);
+
+  const contents: Record<string, unknown>[] = opts.messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: toParts(m),
+  }));
+
+  try {
+    for (let round = 0; round < 4; round++) {
+      const body: Record<string, unknown> = {
+        systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+        contents,
+        tools: [{ functionDeclarations: opts.tools.map((t) => ({ name: t.name, description: t.description, parameters: t.parameters })) }],
+        generationConfig: {
+          temperature: opts.temperature ?? 0.3,
+          maxOutputTokens: opts.maxOutputTokens ?? 8000,
+          ...thinkingFor(model, opts.thinkingBudget ?? 0),
+        },
+      };
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!res.ok) {
+        const rawBody = await res.text();
+        if (res.status === 429) throw new Error("Muitas requisições ao Gemini. Tente em instantes.");
+        if (res.status === 403 || res.status === 401)
+          throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
+        throw new Error(`Falha na IA [${res.status}]: ${rawBody.slice(0, 200)}`);
+      }
+
+      const json = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string } & GeminiFunctionCallPart> } }>;
+      };
+      const parts = (json.candidates?.[0]?.content?.parts ?? []) as Array<{ text?: string } & GeminiFunctionCallPart>;
+      const calls: Array<GeminiFunctionCallPart> = parts.filter((p) => p.functionCall);
+
+      if (!calls.length) {
+        const text = parts.map((p) => p.text ?? "").join("").trim();
+        if (!text) throw new Error("A IA não retornou uma resposta válida.");
+        return text;
+      }
+
+      // Devolve os resultados das funções ao modelo e continua a conversa.
+      const responses: GeminiFunctionResponse[] = [];
+      for (const c of calls) {
+        const name = c.functionCall?.name ?? "";
+        const args = c.functionCall?.args ?? {};
+        const result = await opts.runTool(name, args);
+        responses.push({
+          name,
+          response: {
+            result: typeof result === "string" ? result : JSON.stringify(result),
+          },
+        });
+      }
+      contents.push({ role: "model", parts: calls.map((c) => ({ functionCall: c.functionCall })) });
+      contents.push({ role: "user", parts: responses.map((f) => ({ functionResponse: f })) });
+    }
+    throw new Error("A IA não chegou a uma resposta antes do limite de rodadas.");
+  } catch (e) {
+    if ((e as Error).name === "AbortError") throw new Error("tempo limite excedido");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
  * Versão em streaming (SSE) do Gemini: entrega o texto em pedaços conforme o
  * modelo escreve. Evita a sensação de "travado" em respostas longas.

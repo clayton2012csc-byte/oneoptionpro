@@ -4,6 +4,7 @@ import { getLeagueInfo, getStandings, getFixturesByLeague, type ApiFixture, type
 import { MatchCard } from "@/components/MatchCard";
 import { BackHeader } from "@/components/BackHeader";
 import { useState } from "react";
+import { useTriagemSync } from "@/lib/triagem-view";
 
 const leagueInfoQO = (id: number) =>
   queryOptions({
@@ -118,8 +119,9 @@ function LeaguePage() {
 }
 
 function FixtureList({ q, empty }: { q: { data?: ApiFixture[]; isLoading: boolean }; empty: string }) {
-  if (q.isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Carregando…</div>;
   const list = q.data ?? [];
+  useTriagemSync(list.map((f) => f.fixture.id));
+  if (q.isLoading) return <div className="p-6 text-center text-sm text-muted-foreground">Carregando…</div>;
   if (!list.length) return <div className="p-6 text-center text-sm text-muted-foreground">{empty}</div>;
   return (
     <div className="space-y-2">
