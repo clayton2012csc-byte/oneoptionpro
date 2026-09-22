@@ -201,6 +201,7 @@ function TopBar() {
 
 function SectionRail() {
   const active = useActiveSection();
+  const navigate = useNavigate();
   return (
     <aside className="hidden md:flex w-20 shrink-0 flex-col items-center gap-3 py-6 border-r border-white/10 bg-card/25 backdrop-blur-xl">
       {SECTIONS.map((s) => {
