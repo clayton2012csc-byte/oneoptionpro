@@ -18,6 +18,7 @@ import { useRobotAutopilot } from "@/lib/robot-autopilot";
 function SectionMenu() {
   const active = useActiveSection();
   const [open, setOpen] = useState(false);
+  const navigate = useNavigate();
   const current = SECTIONS.find((s) => s.id === active);
   return (
     <div className="relative">
