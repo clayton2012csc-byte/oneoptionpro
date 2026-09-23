@@ -258,7 +258,9 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     const scans: Record<string, unknown>[] = [];
 
     if (pending.length && genBudget > 0) {
-      const idx = await recentFinishedIndex(12);
+      // 30 dias de histórico: ligas menores jogam 1x por semana e ficavam sem
+      // amostra mínima (3 jogos) na janela antiga de 12 dias → jogo sem selo.
+      const idx = await recentFinishedIndex(30);
       for (const fx of pending.slice(0, genBudget)) {
         try {
           const built = await buildRow(fx, idx);
