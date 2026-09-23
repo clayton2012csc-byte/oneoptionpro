@@ -121,7 +121,7 @@ function TopBar() {
   return (
     <header className="sticky top-0 z-30 bg-background/75 backdrop-blur-2xl border-b border-white/10 shadow-lg shadow-background/30">
       <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-6 h-16">
-        <Link to="/" className="flex items-center gap-2 group shrink-0">
+        <Link to="/" className="flex items-center gap-2 group shrink-0 tap">
           <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center shadow-md shadow-primary/15 group-hover:scale-105 transition-all duration-300">
             <span className="text-primary-foreground font-black text-base">1O</span>
           </div>
@@ -129,7 +129,9 @@ function TopBar() {
             OneOptiOn<span className="text-primary">IA</span>
           </span>
         </Link>
-        <form onSubmit={onSubmit} className="flex-1 min-w-0 max-w-xl relative">
+
+        {/* Busca: no celular abre em uma linha própria para não espremer os botões */}
+        <form onSubmit={onSubmit} className="hidden sm:block flex-1 min-w-0 max-w-xl relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
           <input
             type="search"
@@ -140,7 +142,19 @@ function TopBar() {
           />
         </form>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <button
+            onClick={() => setSearchOpen((v) => !v)}
+            aria-label="Buscar"
+            aria-expanded={searchOpen}
+            className={`sm:hidden tap w-11 h-11 rounded-xl border flex items-center justify-center ${
+              searchOpen
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-card/70 border-white/10 text-muted-foreground"
+            }`}
+          >
+            <Search className="w-5 h-5" />
+          </button>
           <SectionMenu />
           <button
             onClick={refresh}
@@ -154,13 +168,15 @@ function TopBar() {
             onClick={refresh}
             disabled={fetching > 0}
             aria-label="Atualizar"
-            className="sm:hidden w-9 h-9 rounded-lg bg-primary border border-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/10 disabled:opacity-50"
+            className="sm:hidden tap w-11 h-11 rounded-xl bg-primary border border-primary text-primary-foreground flex items-center justify-center shadow-md shadow-primary/10 disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 ${fetching > 0 ? "animate-spin" : ""}`} />
+            <RefreshCw className={`w-5 h-5 ${fetching > 0 ? "animate-spin" : ""}`} />
           </button>
           <AccountModeSwitch />
-          <ApiUsagePanel />
-          <ScannerToggle />
+          <div className="hidden sm:flex items-center gap-2">
+            <ApiUsagePanel />
+            <ScannerToggle />
+          </div>
           {!authLoading &&
             (user ? (
               <div className="flex items-center gap-1">
@@ -178,7 +194,8 @@ function TopBar() {
                 <button
                   onClick={handleSignOut}
                   title="Sair"
-                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                  aria-label="Sair"
+                  className="tap w-11 h-11 sm:w-9 sm:h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-destructive hover:border-destructive/40"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
@@ -186,14 +203,34 @@ function TopBar() {
             ) : (
               <Link
                 to="/auth"
-                className="inline-flex items-center justify-center gap-1.5 w-9 sm:w-auto h-9 sm:px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
+                className="tap inline-flex items-center justify-center gap-1.5 w-11 h-11 sm:w-auto sm:h-9 sm:px-3 rounded-xl sm:rounded-lg bg-primary text-primary-foreground text-xs font-bold uppercase tracking-wider hover:bg-primary/90"
                 aria-label="Entrar"
               >
-                <LogIn className="w-3.5 h-3.5" />
+                <LogIn className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
                 <span className="hidden sm:inline">Entrar</span>
               </Link>
             ))}
         </div>
+      </div>
+
+      {searchOpen && (
+        <form onSubmit={onSubmit} className="sm:hidden px-3 pb-3 relative">
+          <Search className="absolute left-7 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
+          <input
+            autoFocus
+            type="search"
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Times, ligas ou mercados..."
+            className="w-full h-12 pl-11 pr-4 rounded-xl bg-card/60 border border-white/10 text-base placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/45 focus:bg-card/85 transition-all"
+          />
+        </form>
+      )}
+
+      {/* Atalhos que saíram do topo no celular */}
+      <div className="sm:hidden flex items-center gap-2 px-3 pb-2">
+        <ApiUsagePanel />
+        <ScannerToggle />
       </div>
     </header>
   );
