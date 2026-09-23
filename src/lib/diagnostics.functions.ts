@@ -32,7 +32,7 @@ export const diagnosticChat = createServerFn({ method: "POST" })
         .array(
           z.object({
             role: z.enum(["user", "assistant"]),
-            content: z.string().min(1).max(6000),
+            content: z.string().min(1).max(20000),
             /** Anexos (prints, imagens, PDFs, vídeos ou áudios) em data URL base64. */
             attachments: z
               .array(
@@ -149,7 +149,7 @@ export const introMessage = createServerFn({ method: "GET" }).handler(async () =
           "NÃO gere bloco de prompt nesta mensagem.",
       },
     ],
-    maxOutputTokens: 1200,
+    maxOutputTokens: 8000,
     thinkingBudget: 0,
     timeoutMs: 90_000,
 

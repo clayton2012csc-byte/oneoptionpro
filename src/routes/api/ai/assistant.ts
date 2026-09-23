@@ -10,7 +10,7 @@ const Body = z.object({
     .array(
       z.object({
         role: z.enum(["user", "assistant"]),
-        content: z.string().min(1).max(6000),
+        content: z.string().min(1).max(20000),
         attachments: z
           .array(
             z.object({
