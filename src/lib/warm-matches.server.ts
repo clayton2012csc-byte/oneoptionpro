@@ -34,5 +34,5 @@ export async function warmMatches(opts: { day?: number; offset?: number; limit?:
       }),
     );
   }
-  return { date, total: all.length, offset: opts.offset ?? 0, processed: slice.length, ok };
+  return { date, total: all.length, offset: opts.offset ?? 0, processed: slice.length, warmed: ok };
 }
