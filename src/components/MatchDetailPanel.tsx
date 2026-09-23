@@ -56,11 +56,11 @@ export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: n
     },
   });
 
-  if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   const f = fxQ.data;
   useEffect(() => {
     if (f) cacheFixtures([f]);
   }, [f]);
+  if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   if (!f) return (
     <div className="p-12 flex flex-col items-center justify-center gap-8 text-center bg-card rounded-[2.5rem] border border-white/5 shadow-2xl mx-4 my-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-destructive/5 to-transparent pointer-events-none" />
