@@ -248,7 +248,10 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     for (let i = 0; i < ids.length; i += 200) {
       const { data: existing } = await db
         .from("auto_tickets")
-        .select("fixture_id")
+        .select("fixture_id, status")
+        // "skipped" volta para a fila: com mais histórico disponível o jogo
+        // pode receber palpite numa próxima varredura.
+        .neq("status", "skipped")
         .in("fixture_id", ids.slice(i, i + 200));
       for (const r of existing ?? []) known.add(Number(r.fixture_id));
     }
