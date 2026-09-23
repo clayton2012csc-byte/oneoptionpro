@@ -13,7 +13,14 @@ export async function warmMatches(opts: { day?: number; offset?: number; limit?:
   const all = ((await getFixturesByDate({ data: { date } })) ?? []).filter(
     (f) => !FINISHED_STATUSES.has(f.fixture.status.short),
   );
-  const slice = all.slice(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 20));
+  // Pula jogos já preparados: cada execução pega só os novos/expirados.
+  const { getCachedData } = await import("./api-football-cache.server");
+  const pending: typeof all = [];
+  for (const f of all) {
+    const hit = await getCachedData(`preview:${f.teams.home.id}:${f.teams.away.id}:5`).catch(() => null);
+    if (!hit) pending.push(f);
+  }
+  const slice = pending.slice(opts.offset ?? 0, (opts.offset ?? 0) + (opts.limit ?? 20));
   const seenStandings = new Set<string>();
   let ok = 0;
   for (let i = 0; i < slice.length; i += 4) {
@@ -34,5 +41,5 @@ export async function warmMatches(opts: { day?: number; offset?: number; limit?:
       }),
     );
   }
-  return { date, total: all.length, offset: opts.offset ?? 0, processed: slice.length, warmed: ok };
+  return { date, total: all.length, offset: opts.offset ?? 0, pending: pending.length, processed: slice.length, warmed: ok };
 }
