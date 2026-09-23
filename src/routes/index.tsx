@@ -586,7 +586,7 @@ function TodosPage() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setGroupMode(m.id)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-300 active:scale-95 ${
+                  className={`tap px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-300 ${
                     active
                       ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_12px_rgba(234,88,12,0.3)]"
                       : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground"
