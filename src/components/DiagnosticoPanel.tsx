@@ -312,6 +312,8 @@ export function DiagnosticoPanel() {
           full += decoder.decode(value, { stream: true });
           setMessages([...next, { role: "assistant", content: full }]);
         }
+        full += decoder.decode();
+        setMessages([...next, { role: "assistant", content: full }]);
       } else {
         // Plano B: chamada tradicional (sem streaming).
         const r = await chatFn({ data: { messages: next.slice(-12) } });

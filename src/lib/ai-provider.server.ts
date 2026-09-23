@@ -109,54 +109,69 @@ async function callGemini(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 90_000);
 
-  let res: Response;
+  const contents: Record<string, unknown>[] = opts.messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: toParts(m),
+  }));
+  const answerParts: string[] = [];
   try {
-    res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
-      {
-        method: "POST",
-        signal: controller.signal,
-        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-        body: JSON.stringify({
-          systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
-          contents: opts.messages.map((m) => ({
-            role: m.role === "assistant" ? "model" : "user",
-            parts: toParts(m),
-          })),
-          generationConfig: {
-            temperature: opts.temperature ?? 0.6,
-            maxOutputTokens: opts.maxOutputTokens ?? 2048,
-            ...thinkingFor(model, opts.thinkingBudget),
-            ...(opts.json ? { responseMimeType: "application/json" } : {}),
-          },
-        }),
-      },
-    );
+    for (let continuation = 0; continuation < 3; continuation++) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+        {
+          method: "POST",
+          signal: controller.signal,
+          headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+          body: JSON.stringify({
+            systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
+            contents,
+            generationConfig: {
+              temperature: opts.temperature ?? 0.6,
+              maxOutputTokens: opts.maxOutputTokens ?? 2048,
+              ...thinkingFor(model, opts.thinkingBudget),
+              ...(opts.json ? { responseMimeType: "application/json" } : {}),
+            },
+          }),
+        },
+      );
+
+      if (!res.ok) {
+        const body = await res.text();
+        if (res.status === 429) throw new Error("Muitas requisições ao Gemini. Tente em instantes.");
+        if (res.status === 403 || res.status === 401)
+          throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
+        throw new Error(`Falha na IA [${res.status}]: ${body.slice(0, 200)}`);
+      }
+
+      const json = (await res.json()) as {
+        candidates?: Array<{
+          content?: { parts?: { text?: string }[] };
+          finishReason?: string;
+        }>;
+      };
+      const candidate = json.candidates?.[0];
+      const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+      if (text) answerParts.push(text);
+
+      if (candidate?.finishReason !== "MAX_TOKENS") {
+        const answer = answerParts.join("").trim();
+        if (!answer) throw new Error("A IA não retornou uma resposta válida.");
+        return answer;
+      }
+
+      contents.push({ role: "model", parts: [{ text }] });
+      contents.push({
+        role: "user",
+        parts: [{ text: "Continue exatamente do ponto onde parou e conclua a resposta. Não repita o texto anterior." }],
+      });
+    }
+    throw new Error("A resposta excedeu o limite mesmo após as continuações automáticas.");
   } catch (e) {
     const msg = (e as Error).name === "AbortError" ? "tempo limite excedido" : (e as Error).message;
     throw new Error(`Falha na IA [504]: ${msg}`);
   } finally {
     clearTimeout(timer);
   }
-
-
-  if (!res.ok) {
-    const body = await res.text();
-    if (res.status === 429) throw new Error("Muitas requisições ao Gemini. Tente em instantes.");
-    if (res.status === 403 || res.status === 401)
-      throw new Error("Chave do Gemini inválida ou sem permissão. Verifique GEMINI_API_KEY.");
-    throw new Error(`Falha na IA [${res.status}]: ${body.slice(0, 200)}`);
-  }
-
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = (json.candidates?.[0]?.content?.parts ?? [])
-    .map((p) => p.text ?? "")
-    .join("")
-    .trim();
-  if (!text) throw new Error("A IA não retornou uma resposta válida.");
-  return text;
 }
 
 // ───────────────────── Tool-calling (leitura segura) ─────────────────────
@@ -239,9 +254,11 @@ async function callGeminiWithTools(
     role: m.role === "assistant" ? "model" : "user",
     parts: toParts(m),
   }));
+  const answerParts: string[] = [];
+  let continuations = 0;
 
   try {
-    for (let round = 0; round < 4; round++) {
+    for (let round = 0; round < 8; round++) {
       const body: Record<string, unknown> = {
         systemInstruction: { parts: opts.system.filter(Boolean).map((text) => ({ text })) },
         contents,
@@ -272,15 +289,30 @@ async function callGeminiWithTools(
       }
 
       const json = (await res.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string } & GeminiFunctionCallPart> } }>;
+        candidates?: Array<{
+          content?: { parts?: Array<{ text?: string } & GeminiFunctionCallPart> };
+          finishReason?: string;
+        }>;
       };
-      const parts = (json.candidates?.[0]?.content?.parts ?? []) as Array<{ text?: string } & GeminiFunctionCallPart>;
+      const candidate = json.candidates?.[0];
+      const parts = (candidate?.content?.parts ?? []) as Array<{ text?: string } & GeminiFunctionCallPart>;
       const calls: Array<GeminiFunctionCallPart> = parts.filter((p) => p.functionCall);
 
       if (!calls.length) {
-        const text = parts.map((p) => p.text ?? "").join("").trim();
-        if (!text) throw new Error("A IA não retornou uma resposta válida.");
-        return text;
+        const text = parts.map((p) => p.text ?? "").join("");
+        if (text) answerParts.push(text);
+        if (candidate?.finishReason === "MAX_TOKENS" && continuations < 3) {
+          continuations += 1;
+          contents.push({ role: "model", parts: [{ text }] });
+          contents.push({
+            role: "user",
+            parts: [{ text: "Continue exatamente do ponto onde parou e conclua a resposta. Não repita o texto anterior." }],
+          });
+          continue;
+        }
+        const answer = answerParts.join("").trim();
+        if (!answer) throw new Error("A IA não retornou uma resposta válida.");
+        return answer;
       }
 
       // Devolve os resultados das funções ao modelo e continua a conversa.
@@ -393,7 +425,10 @@ async function* readStream(res: Response): AsyncGenerator<string> {
   let buffer = "";
   while (true) {
     const { value, done } = await reader.read();
-    if (done) break;
+    if (done) {
+      buffer += decoder.decode();
+      break;
+    }
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
@@ -411,6 +446,21 @@ async function* readStream(res: Response): AsyncGenerator<string> {
         if (chunk) yield chunk;
       } catch {
         /* pedaço incompleto: ignora */
+      }
+    }
+  }
+  const finalLine = buffer.trim();
+  if (finalLine.startsWith("data:")) {
+    const payload = finalLine.slice(5).trim();
+    if (payload && payload !== "[DONE]") {
+      try {
+        const json = JSON.parse(payload) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const chunk = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+        if (chunk) yield chunk;
+      } catch {
+        /* resposta final inválida: os pedaços anteriores permanecem intactos */
       }
     }
   }
