@@ -248,7 +248,10 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     for (let i = 0; i < ids.length; i += 200) {
       const { data: existing } = await db
         .from("auto_tickets")
-        .select("fixture_id")
+        .select("fixture_id, status")
+        // "skipped" volta para a fila: com mais histórico disponível o jogo
+        // pode receber palpite numa próxima varredura.
+        .neq("status", "skipped")
         .in("fixture_id", ids.slice(i, i + 200));
       for (const r of existing ?? []) known.add(Number(r.fixture_id));
     }
@@ -258,7 +261,9 @@ export async function runAutoTicketsBatch(limit = 500): Promise<AutoTicketsProgr
     const scans: Record<string, unknown>[] = [];
 
     if (pending.length && genBudget > 0) {
-      const idx = await recentFinishedIndex(12);
+      // 30 dias de histórico: ligas menores jogam 1x por semana e ficavam sem
+      // amostra mínima (3 jogos) na janela antiga de 12 dias → jogo sem selo.
+      const idx = await recentFinishedIndex(30);
       for (const fx of pending.slice(0, genBudget)) {
         try {
           const built = await buildRow(fx, idx);
