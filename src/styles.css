@@ -111,6 +111,21 @@
   &::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 
+/* Toque no celular: sem realce cinza do navegador, sem atraso de 300ms
+   e resposta visual ao pressionar. */
+@utility tap {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  transition: transform 120ms ease, opacity 120ms ease;
+  &:active { transform: scale(0.94); opacity: 0.92; }
+}
+
+/* Alvo mínimo de toque (44px) só em telas de dedo. */
+@media (pointer: coarse) {
+  .tap { min-height: 44px; min-width: 44px; }
+}
+
 @keyframes shimmer-sweep {
   100% { transform: translateX(100%); }
 }

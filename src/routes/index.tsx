@@ -566,7 +566,7 @@ function TodosPage() {
                   aria-selected={active}
                   disabled={disabled}
                   onClick={() => setFilter(f.id)}
-                  className={`shrink-0 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 active:scale-95 ${
+                  className={`tap shrink-0 px-4 py-2 rounded-2xl text-[11px] font-black uppercase tracking-widest border transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50 disabled:cursor-not-allowed hover:scale-105 ${
                     active
                       ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_15px_rgba(234,88,12,0.3)]"
                       : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10 hover:border-white/10"
@@ -586,7 +586,7 @@ function TodosPage() {
                   role="tab"
                   aria-selected={active}
                   onClick={() => setGroupMode(m.id)}
-                  className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-300 active:scale-95 ${
+                  className={`tap px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all duration-300 ${
                     active
                       ? "bg-blue-600 text-white border-blue-600 shadow-[0_0_12px_rgba(234,88,12,0.3)]"
                       : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground"
