@@ -67,7 +67,7 @@ export const diagnosticChat = createServerFn({ method: "POST" })
         content: m.content,
         attachments: m.attachments,
       })),
-      maxOutputTokens: 1400,
+      maxOutputTokens: 8000,
       thinkingBudget: 0,
       timeoutMs: 100_000,
 
