@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, User, Sparkles, Star, RefreshCw, ArrowLeft } from "lucide-react";
@@ -45,15 +45,22 @@ function JogoPage() {
   const { fixtureId } = Route.useParams();
   const id = Number(fixtureId);
   const [tab, setTab] = useState<Tab>("resumo");
+  const [cacheReady, setCacheReady] = useState(false);
 
   const fetchFixture = useServerFn(getFixture);
-  const cachedFixture = useMemo(() => getCachedFixture(id), [id]);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const cached = getCachedFixture(id);
+    if (cached && queryClient.getQueryData(["fixture", id]) === undefined) {
+      queryClient.setQueryData(["fixture", id], cached);
+    }
+    setCacheReady(true);
+  }, [id, queryClient]);
   const fxQ = useQuery({
     queryKey: ["fixture", id],
     queryFn: () => fetchFixture({ data: { id } }),
-    initialData: cachedFixture,
-    initialDataUpdatedAt: cachedFixture ? Date.now() : undefined,
-    staleTime: cachedFixture ? 5 * 60_000 : 0,
+    enabled: cacheReady,
+    staleTime: 5 * 60_000,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;

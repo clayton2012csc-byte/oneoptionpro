@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { X, Bell, BellOff, Maximize2, Star, RefreshCw } from "lucide-react";
@@ -42,14 +42,21 @@ const TABS: [Tab, string][] = [
 
 export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: number; embedded?: boolean }) {
   const [tab, setTab] = useState<Tab>("detalhes");
+  const [cacheReady, setCacheReady] = useState(false);
   const fetchFixture = useServerFn(getFixture);
-  const cachedFixture = getCachedFixture(fixtureId);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const cached = getCachedFixture(fixtureId);
+    if (cached && queryClient.getQueryData(["fixture", fixtureId]) === undefined) {
+      queryClient.setQueryData(["fixture", fixtureId], cached);
+    }
+    setCacheReady(true);
+  }, [fixtureId, queryClient]);
   const fxQ = useQuery({
     queryKey: ["fixture", fixtureId],
     queryFn: () => fetchFixture({ data: { id: fixtureId } }),
-    initialData: cachedFixture,
-    initialDataUpdatedAt: cachedFixture ? Date.now() : undefined,
-    staleTime: cachedFixture ? 5 * 60_000 : 0,
+    enabled: cacheReady,
+    staleTime: 5 * 60_000,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
