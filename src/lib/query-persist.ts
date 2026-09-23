@@ -28,7 +28,8 @@ export function usePersistedQueryCache(queryClient: QueryClient) {
         const [unsubscribe, restored] = persistQueryClient({
           queryClient: queryClient as never,
           persister,
-          maxAge: 12 * 60 * 60_000,
+          // Jogos, selos e detalhes já vistos sobrevivem à recarga por uma semana.
+          maxAge: 7 * 24 * 60 * 60_000,
           buster: "v1",
         });
         void restored;

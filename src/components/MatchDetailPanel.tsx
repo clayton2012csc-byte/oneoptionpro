@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Bell, BellOff, Maximize2, Star, RefreshCw } from "lucide-react";
 import { useFavorites, toggleFavorite, FavoriteButton, NotificationButton } from "@/lib/favorites";
 import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
@@ -19,6 +19,7 @@ import { buildMasterPrediction } from "@/lib/master-engine";
 import { useScanSync } from "@/lib/scan-sync";
 import { setSelectedFixture } from "@/lib/selected-fixture";
 import { toggleFixture, usePinnedSections, type SectionId } from "@/lib/pinned-sections";
+import { cacheFixtures, getCachedFixture } from "@/lib/fixture-cache";
 
 const PIN_SECTIONS: { id: SectionId; icon: string; label: string }[] = [
   { id: "bingao", icon: "🎯", label: "Bingão" },
@@ -41,18 +42,32 @@ const TABS: [Tab, string][] = [
 
 export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: number; embedded?: boolean }) {
   const [tab, setTab] = useState<Tab>("detalhes");
+  const [cacheReady, setCacheReady] = useState(false);
   const fetchFixture = useServerFn(getFixture);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const cached = getCachedFixture(fixtureId);
+    if (cached && queryClient.getQueryData(["fixture", fixtureId]) === undefined) {
+      queryClient.setQueryData(["fixture", fixtureId], cached);
+    }
+    setCacheReady(true);
+  }, [fixtureId, queryClient]);
   const fxQ = useQuery({
     queryKey: ["fixture", fixtureId],
     queryFn: () => fetchFixture({ data: { id: fixtureId } }),
+    enabled: cacheReady,
+    staleTime: 5 * 60_000,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
     },
   });
 
-  if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   const f = fxQ.data;
+  useEffect(() => {
+    if (f) cacheFixtures([f]);
+  }, [f]);
+  if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   if (!f) return (
     <div className="p-12 flex flex-col items-center justify-center gap-8 text-center bg-card rounded-[2.5rem] border border-white/5 shadow-2xl mx-4 my-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-destructive/5 to-transparent pointer-events-none" />

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { MapPin, User, Sparkles, Star, RefreshCw, ArrowLeft } from "lucide-react";
@@ -18,6 +18,7 @@ import { useFavorites, toggleFavorite, FavoriteButton as SharedFavoriteButton, N
 import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
 import { Bell, BellOff } from "lucide-react";
 import { toast } from "sonner";
+import { cacheFixtures, getCachedFixture } from "@/lib/fixture-cache";
 
 export const Route = createFileRoute("/jogo/$fixtureId")({
   head: () => ({
@@ -44,11 +45,22 @@ function JogoPage() {
   const { fixtureId } = Route.useParams();
   const id = Number(fixtureId);
   const [tab, setTab] = useState<Tab>("resumo");
+  const [cacheReady, setCacheReady] = useState(false);
 
   const fetchFixture = useServerFn(getFixture);
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const cached = getCachedFixture(id);
+    if (cached && queryClient.getQueryData(["fixture", id]) === undefined) {
+      queryClient.setQueryData(["fixture", id], cached);
+    }
+    setCacheReady(true);
+  }, [id, queryClient]);
   const fxQ = useQuery({
     queryKey: ["fixture", id],
     queryFn: () => fetchFixture({ data: { id } }),
+    enabled: cacheReady,
+    staleTime: 5 * 60_000,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
@@ -58,6 +70,7 @@ function JogoPage() {
   useEffect(() => {
     const f = fxQ.data;
     if (f && typeof document !== "undefined") {
+      cacheFixtures([f]);
       const score = f.goals.home != null ? ` ${f.goals.home}-${f.goals.away}` : "";
       document.title = `${f.teams.home.name} × ${f.teams.away.name}${score} — OneOptiOn`;
     }

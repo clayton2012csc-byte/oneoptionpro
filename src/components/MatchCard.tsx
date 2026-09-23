@@ -15,6 +15,7 @@ import { useTriagemView, triagemMinFor } from "@/lib/triagem-view";
 import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { autoTicketStatus } from "@/lib/auto-tickets.functions";
 import { AiPickBadges } from "@/components/AiPickBadges";
+import { cacheFixtures } from "@/lib/fixture-cache";
 
 
 function statusLabel(f: ApiFixture) {
@@ -95,11 +96,12 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
   // da página do jogo sem gastar nenhuma requisição extra na API.
   const qc = useQueryClient();
   useEffect(() => {
-    if (!isNearScreen) return;
+    // Salva imediatamente, inclusive cartões que ainda estão fora da tela.
+    cacheFixtures([fixture]);
     if (qc.getQueryData(["fixture", fixture.fixture.id]) === undefined) {
       qc.setQueryData(["fixture", fixture.fixture.id], fixture);
     }
-  }, [isNearScreen, fixture, qc]);
+  }, [fixture, qc]);
 
   // Sem pré-busca ao passar o mouse/dedo: cada prévia custava várias
   // requisições da API por card apenas por encostar no cartão.
@@ -111,6 +113,7 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       ref={cardRef}
       to="/jogo/$fixtureId"
       params={{ fixtureId: String(fixture.fixture.id) }}
+      preload="intent"
       onClick={(e) => {
         if (isDesktopThreeCol()) {
           e.preventDefault();

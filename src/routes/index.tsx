@@ -35,6 +35,7 @@ import { getBulkPredictions, ScanPrediction } from "@/lib/bulk-predictions.funct
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Scan } from "lucide-react";
 import { toast } from "sonner";
+import { cacheFixtures } from "@/lib/fixture-cache";
 
 const GROUP_CHUNK = 6; // ligas renderizadas por vez (scroll infinito)
 
@@ -314,6 +315,13 @@ function TodosPage() {
     refetchInterval: 180_000, // 3 min para poupar cota
     enabled: filter === "live",
   });
+
+  // Guarda a lista inteira assim que ela chega. Assim até jogos ainda não
+  // renderizados pelo scroll infinito abrem imediatamente e sobrevivem à recarga.
+  useEffect(() => {
+    const fixtures = [...(q.data ?? []), ...(liveQ.data ?? [])];
+    cacheFixtures(fixtures);
+  }, [q.data, liveQ.data]);
 
   const handleScan = async () => {
     setIsScanning(true);

@@ -7,7 +7,7 @@ export const getRouter = () => {
     defaultOptions: {
       queries: {
         // Reaproveita cache entre abas/telas e evita refetch desnecessário na API
-        gcTime: 2 * 60 * 60_000,
+        gcTime: 7 * 24 * 60 * 60_000,
         refetchOnWindowFocus: false,
         refetchOnMount: false,
         retry: 1,
