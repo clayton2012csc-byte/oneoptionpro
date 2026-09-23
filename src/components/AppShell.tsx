@@ -308,9 +308,10 @@ function MobileNav() {
               </span>
               <button
                 onClick={() => setLigas(false)}
-                className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center"
+                aria-label="Fechar"
+                className="tap w-11 h-11 rounded-full bg-white/5 border border-white/10 flex items-center justify-center"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
             <LeagueList onNavigate={() => setLigas(false)} />
@@ -318,17 +319,17 @@ function MobileNav() {
         </div>
       )}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-white/10 pb-[env(safe-area-inset-bottom)]">
-        <div className="flex gap-1 overflow-x-auto scrollbar-none px-2 py-1.5">
+        <div className="flex gap-1.5 overflow-x-auto scrollbar-none snap-x snap-mandatory px-2 py-2">
           {SECTIONS.map((s) => {
             const isActive = active === s.id;
-            const cls = `shrink-0 min-w-[68px] px-2 py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider border transition ${
+            const cls = `tap snap-start shrink-0 min-w-[76px] px-2 py-2 rounded-2xl flex flex-col items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider border ${
               isActive
-                ? "bg-primary/15 text-primary border-primary/30"
-                : "text-muted-foreground border-transparent"
+                ? "bg-primary/20 text-primary border-primary/40 shadow-md shadow-primary/10"
+                : "text-muted-foreground border-white/5 bg-white/[0.03]"
             }`;
             const content = (
               <>
-                <span className="text-lg leading-none">{s.icon}</span>
+                <span className="text-xl leading-none">{s.icon}</span>
                 <span className="truncate w-full text-center leading-tight">{s.label}</span>
               </>
             );
@@ -355,9 +356,9 @@ function MobileNav() {
           })}
           <button
             onClick={() => setLigas(true)}
-            className="shrink-0 min-w-[68px] px-2 py-1.5 rounded-xl flex flex-col items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground border border-transparent"
+            className="tap snap-start shrink-0 min-w-[76px] px-2 py-2 rounded-2xl flex flex-col items-center justify-center gap-1 text-[9px] font-bold uppercase tracking-wider text-muted-foreground border border-white/5 bg-white/[0.03]"
           >
-            <Trophy className="w-4.5 h-4.5" />
+            <Trophy className="w-5 h-5" />
             <span>Ligas</span>
           </button>
         </div>
