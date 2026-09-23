@@ -216,7 +216,7 @@ function eventIcon(e: ApiEvent) {
 function usePreview(fx: ApiFixture, enabled: boolean) {
   const fn = useServerFn(getMatchPreview);
   return useQuery({
-    queryKey: ["preview", fx.teams.home.id, fx.teams.away.id],
+    queryKey: ["preview", fx.fixture.id],
     queryFn: () => fn({ data: { homeId: fx.teams.home.id, awayId: fx.teams.away.id, last: 5 } }),
     staleTime: 30 * 60_000,
     enabled,
