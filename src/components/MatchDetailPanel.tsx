@@ -19,6 +19,7 @@ import { buildMasterPrediction } from "@/lib/master-engine";
 import { useScanSync } from "@/lib/scan-sync";
 import { setSelectedFixture } from "@/lib/selected-fixture";
 import { toggleFixture, usePinnedSections, type SectionId } from "@/lib/pinned-sections";
+import { cacheFixtures, getCachedFixture } from "@/lib/fixture-cache";
 
 const PIN_SECTIONS: { id: SectionId; icon: string; label: string }[] = [
   { id: "bingao", icon: "🎯", label: "Bingão" },
@@ -42,9 +43,13 @@ const TABS: [Tab, string][] = [
 export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: number; embedded?: boolean }) {
   const [tab, setTab] = useState<Tab>("detalhes");
   const fetchFixture = useServerFn(getFixture);
+  const cachedFixture = getCachedFixture(fixtureId);
   const fxQ = useQuery({
     queryKey: ["fixture", fixtureId],
     queryFn: () => fetchFixture({ data: { id: fixtureId } }),
+    initialData: cachedFixture,
+    initialDataUpdatedAt: cachedFixture ? Date.now() : undefined,
+    staleTime: cachedFixture ? 5 * 60_000 : 0,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
@@ -53,6 +58,7 @@ export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: n
 
   if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   const f = fxQ.data;
+  if (f) cacheFixtures([f]);
   if (!f) return (
     <div className="p-12 flex flex-col items-center justify-center gap-8 text-center bg-card rounded-[2.5rem] border border-white/5 shadow-2xl mx-4 my-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-destructive/5 to-transparent pointer-events-none" />

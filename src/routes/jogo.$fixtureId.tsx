@@ -18,6 +18,7 @@ import { useFavorites, toggleFavorite, FavoriteButton as SharedFavoriteButton, N
 import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
 import { Bell, BellOff } from "lucide-react";
 import { toast } from "sonner";
+import { cacheFixtures, getCachedFixture } from "@/lib/fixture-cache";
 
 export const Route = createFileRoute("/jogo/$fixtureId")({
   head: () => ({
@@ -46,9 +47,13 @@ function JogoPage() {
   const [tab, setTab] = useState<Tab>("resumo");
 
   const fetchFixture = useServerFn(getFixture);
+  const cachedFixture = useMemo(() => getCachedFixture(id), [id]);
   const fxQ = useQuery({
     queryKey: ["fixture", id],
     queryFn: () => fetchFixture({ data: { id } }),
+    initialData: cachedFixture,
+    initialDataUpdatedAt: cachedFixture ? Date.now() : undefined,
+    staleTime: cachedFixture ? 5 * 60_000 : 0,
     refetchInterval: (q) => {
       const f = q.state.data as ApiFixture | null | undefined;
       return f && LIVE_STATUSES.has(f.fixture.status.short) ? 90_000 : false;
@@ -58,6 +63,7 @@ function JogoPage() {
   useEffect(() => {
     const f = fxQ.data;
     if (f && typeof document !== "undefined") {
+      cacheFixtures([f]);
       const score = f.goals.home != null ? ` ${f.goals.home}-${f.goals.away}` : "";
       document.title = `${f.teams.home.name} × ${f.teams.away.name}${score} — OneOptiOn`;
     }
