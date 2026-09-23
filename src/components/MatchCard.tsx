@@ -16,6 +16,7 @@ import { computeOwnPrediction, pctFmt } from "@/lib/own-prediction";
 import { autoTicketStatus } from "@/lib/auto-tickets.functions";
 import { AiPickBadges } from "@/components/AiPickBadges";
 import { cacheFixtures } from "@/lib/fixture-cache";
+import { prefetchMatch } from "@/lib/prefetch-match";
 
 
 function statusLabel(f: ApiFixture) {
@@ -114,7 +115,10 @@ function MatchCardBase({ fixture }: { fixture: ApiFixture }) {
       to="/jogo/$fixtureId"
       params={{ fixtureId: String(fixture.fixture.id) }}
       preload="intent"
+      // Ao encostar para abrir, já dispara todas as abas em paralelo.
+      onPointerDown={() => prefetchMatch(qc, fixture)}
       onClick={(e) => {
+        prefetchMatch(qc, fixture);
         if (isDesktopThreeCol()) {
           e.preventDefault();
           setSelectedFixture(fixture.fixture.id);
