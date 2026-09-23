@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Bell, BellOff, Maximize2, Star, RefreshCw } from "lucide-react";
 import { useFavorites, toggleFavorite, FavoriteButton, NotificationButton } from "@/lib/favorites";
 import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/alert-sound";
@@ -58,7 +58,9 @@ export function MatchDetailPanel({ fixtureId, embedded = false }: { fixtureId: n
 
   if (fxQ.isLoading) return <div className="p-4 text-sm text-muted-foreground">Carregando...</div>;
   const f = fxQ.data;
-  if (f) cacheFixtures([f]);
+  useEffect(() => {
+    if (f) cacheFixtures([f]);
+  }, [f]);
   if (!f) return (
     <div className="p-12 flex flex-col items-center justify-center gap-8 text-center bg-card rounded-[2.5rem] border border-white/5 shadow-2xl mx-4 my-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-destructive/5 to-transparent pointer-events-none" />
