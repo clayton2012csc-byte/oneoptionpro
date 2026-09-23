@@ -9,6 +9,17 @@ async function runCron({ request }: { request: Request }): Promise<Response> {
     const raw = Number(url.searchParams.get("limit") ?? 500);
     const limit = Math.min(Math.max(Number.isFinite(raw) ? raw : 500, 1), 1000);
     const mode = url.searchParams.get("mode");
+    if (mode === "warm") {
+      const { warmMatches } = await import("@/lib/warm-matches.server");
+      return Response.json({
+        ok: true,
+        ...(await warmMatches({
+          day: Number(url.searchParams.get("day") ?? 0),
+          offset: Number(url.searchParams.get("offset") ?? 0),
+          limit: Math.min(limit, 40),
+        })),
+      });
+    }
     if (mode === "backfill") {
       const { backfillScanSnapshots } = await import("@/lib/auto-tickets.server");
       return Response.json({ ok: true, backfilled: await backfillScanSnapshots(limit) });
