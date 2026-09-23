@@ -19,6 +19,7 @@ import { isSoundEnabled, setSoundEnabled, primeSound, playAlert } from "@/lib/al
 import { Bell, BellOff } from "lucide-react";
 import { toast } from "sonner";
 import { cacheFixtures, getCachedFixture } from "@/lib/fixture-cache";
+import { prefetchMatch } from "@/lib/prefetch-match";
 
 export const Route = createFileRoute("/jogo/$fixtureId")({
   head: () => ({
@@ -71,6 +72,7 @@ function JogoPage() {
     const f = fxQ.data;
     if (f && typeof document !== "undefined") {
       cacheFixtures([f]);
+      prefetchMatch(queryClient, f);
       const score = f.goals.home != null ? ` ${f.goals.home}-${f.goals.away}` : "";
       document.title = `${f.teams.home.name} × ${f.teams.away.name}${score} — OneOptiOn`;
     }
