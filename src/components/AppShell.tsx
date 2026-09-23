@@ -96,6 +96,7 @@ function TopBar() {
   const fetching = useIsFetching();
   const currentQuery = useSearchQuery();
   const [value, setValue] = useState(currentQuery);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
