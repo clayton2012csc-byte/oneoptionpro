@@ -8,6 +8,13 @@
       "when": 1790217939369,
       "tag": "0000_oneoption_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790218583420,
+      "tag": "0001_ai_predictions_public_write",
+      "breakpoints": true
     }
   ]
 }
