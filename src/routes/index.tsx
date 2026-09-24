@@ -1,3 +1,4 @@
+import { ConferenciaAba } from "@/components/ConferenciaAba";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -547,6 +548,21 @@ function TodosPage() {
           </div>
         </div>
       )}
+      {(() => {
+        const key = folder ?? activeSection;
+        const conf: Record<string, { t: string; m?: string[] }> = {
+          melhores: { t: "Melhores Jogos" },
+          multiplas: { t: "Múltiplas Populares" },
+          beta: { t: "Beta", m: ["Gols Dinâmico", "Ambas Marcam", "Resultado 1X2"] },
+          bingao: { t: "Bingão", m: ["Placar Múltiplo Exato", "Placar Exato Seco", "Gols Dinâmico"] },
+          loteca: { t: "Lotéca IA", m: ["Resultado 1X2"] },
+          radar: { t: "Radar OneOption" },
+          "especiais-betano": { t: "Especiais Betano", m: ["Aposta Montada", "Escanteios", "Cartões"] },
+          alfha: { t: "Alfha" },
+        };
+        const c = key ? conf[key] : undefined;
+        return c ? <div className="pt-1"><ConferenciaAba key={key} titulo={c.t} markets={c.m} /></div> : null;
+      })()}
       <Suspense fallback={<div className="px-3 pb-8"><LoadingList /></div>}>
         {folder === "bingao" && <BingaoClosurePanel />}
         {folder === "loteca" && <LotecaPanel />}

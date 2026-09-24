@@ -264,9 +264,10 @@ export function MelhoresJogosPanel() {
 
   const rows = q.data?.rows ?? [];
   const filtered = useMemo(() => {
-    if (horizon === "hoje") return rows.filter((r) => isToday(r.kickoff));
-    if (horizon === "3h") return rows.filter((r) => new Date(r.kickoff).getTime() <= nowMs + 3 * 60 * 60 * 1000);
-    return rows;
+    const live = rows.filter((r) => new Date(r.kickoff).getTime() > nowMs);
+    if (horizon === "hoje") return live.filter((r) => isToday(r.kickoff));
+    if (horizon === "3h") return live.filter((r) => new Date(r.kickoff).getTime() <= nowMs + 3 * 60 * 60 * 1000);
+    return live;
   }, [rows, horizon, nowMs]);
 
   const totalPicks = filtered.reduce((s, r) => s + (r.picks?.length ?? 0), 0);
