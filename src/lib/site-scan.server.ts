@@ -138,7 +138,7 @@ export async function runSiteScan(): Promise<SiteScan> {
     {
       name: "SUPABASE_SERVICE_ROLE_KEY",
       configured: Boolean(
-        process.env["SUPABASE_SERVICE_ROLE_KEY"] ?? process.env["APP_SUPABASE_SERVICE_ROLE_KEY"],
+        process.env["SUPABASE_SERVICE_ROLE_KEY"],
       ),
     },
   ];
