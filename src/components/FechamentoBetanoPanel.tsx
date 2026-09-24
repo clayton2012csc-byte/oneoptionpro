@@ -2,6 +2,7 @@
  * Fechamento Betano 3/4 Unificado — os 4 jogos do dia com 3 opções de cobertura cada,
  * blocos de estatísticas e especiais Betano integrados.
  */
+import { ConferenciaAba } from "@/components/ConferenciaAba";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -263,6 +264,7 @@ export function FechamentoBetanoPanel() {
 
   return (
     <section className="space-y-4">
+      <div className="-mx-3"><ConferenciaAba titulo="Fechamento Betano 3/4" markets={["Placar Múltiplo Exato", "Placar Exato Seco", "Aposta Montada", "Resultado 1X2"]} /></div>
       <div className="rounded-2xl border border-border/60 bg-card/60 p-4 backdrop-blur">
         <div className="flex items-center gap-2">
           <Layers className="h-5 w-5 text-primary" />
