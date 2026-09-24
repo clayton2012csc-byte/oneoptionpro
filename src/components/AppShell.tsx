@@ -42,9 +42,20 @@ function SectionMenu() {
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-11 z-50 w-56 rounded-xl glass p-1.5 shadow-xl">
-            {SECTIONS.map((s) => {
+          <div className="absolute right-0 top-11 z-50 w-64 max-h-[75vh] overflow-y-auto rounded-xl glass p-1.5 shadow-xl">
+            {SECTIONS.map((s, i) => {
               const isActive = active === s.id;
+              const header =
+                i === 0 || SECTIONS[i - 1].group !== s.group ? (
+                  <div key={`g-${s.group}`} className="px-2.5 pt-2 pb-1 text-[10px] font-black uppercase tracking-wider text-muted-foreground">
+                    {s.group}
+                  </div>
+                ) : null;
+              if (header) {
+                return [header, renderItem()];
+              }
+              return renderItem();
+              function renderItem() {
               const cls = `w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm text-left transition ${
                 isActive ? "bg-primary/15 text-primary" : "hover:bg-white/5 text-foreground"
               }`;
@@ -82,6 +93,7 @@ function SectionMenu() {
                   {content}
                 </button>
               );
+              }
             })}
 
           </div>
