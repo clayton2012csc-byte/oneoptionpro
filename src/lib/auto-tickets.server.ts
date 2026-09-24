@@ -29,7 +29,7 @@ const GRADE_INTERVAL_MS = 30 * 60 * 1000; // conferência: 1x a cada 30 min
 const SCAN_THROTTLE_KEY = "auto_tickets_scan_throttle";
 const SCAN_INTERVAL_MS = 15 * 60 * 1000; // varredura: 1x a cada 15 min
 const GAP_MS = 150; // espacamento entre jogos (plano Pro)
-const HORIZON_HOURS = 24;
+const HORIZON_HOURS = 48; // cobre hoje + amanhã inteiro para os selos aparecerem sem abrir o jogo
 const CORNERS_AVG = 5.0; // estimativa quando não há estatística disponível
 const CARDS_AVG = 2.0;
 
