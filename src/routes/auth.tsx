@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Mail, Lock, LogIn } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { isSupabaseConfigured } from "@/lib/public-config";
 import { BackHeader } from "@/components/BackHeader";
 
@@ -150,7 +151,22 @@ function AuthPage() {
           </div>
         </div>
 
-        {/* Login com Google fica oculto até o provedor ser ativado no painel do Supabase */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setError(null);
+            const r = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+            if (r.error) { setError(r.error.message ?? "Falha no login com Google"); return; }
+            if (r.redirected) return;
+            navigate({ to: "/" });
+          }}
+          className="w-full mb-3 flex items-center justify-center gap-2 border border-border bg-background rounded-lg py-2 text-sm font-bold disabled:opacity-50"
+        >
+          Continuar com Google
+        </button>
+        <div className="text-[11px] text-center text-muted-foreground mb-3">ou com e-mail</div>
+
 
 
         <form onSubmit={handleEmail} className="space-y-2.5">

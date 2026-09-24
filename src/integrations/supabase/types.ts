@@ -21,6 +21,7 @@ export type Database = {
           fixture_id: number
           id: string
           market: string
+          market_sub_type: string | null
           probability: number
           result: Json | null
           round_id: string | null
@@ -34,6 +35,7 @@ export type Database = {
           fixture_id: number
           id?: string
           market: string
+          market_sub_type?: string | null
           probability: number
           result?: Json | null
           round_id?: string | null
@@ -47,6 +49,7 @@ export type Database = {
           fixture_id?: number
           id?: string
           market?: string
+          market_sub_type?: string | null
           probability?: number
           result?: Json | null
           round_id?: string | null
@@ -387,6 +390,63 @@ export type Database = {
           tickets?: Json
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      triagem_records: {
+        Row: {
+          ceiling: number
+          created_at: string
+          fixture_id: number
+          graded_at: string | null
+          id: string
+          kickoff: string | null
+          league: string | null
+          market_type: string
+          match_name: string
+          passed: boolean
+          predicted_value: string
+          probability: number
+          reason: Json
+          result_score: string | null
+          score_confidence: number
+          status: string
+        }
+        Insert: {
+          ceiling?: number
+          created_at?: string
+          fixture_id: number
+          graded_at?: string | null
+          id?: string
+          kickoff?: string | null
+          league?: string | null
+          market_type: string
+          match_name: string
+          passed?: boolean
+          predicted_value: string
+          probability?: number
+          reason?: Json
+          result_score?: string | null
+          score_confidence?: number
+          status?: string
+        }
+        Update: {
+          ceiling?: number
+          created_at?: string
+          fixture_id?: number
+          graded_at?: string | null
+          id?: string
+          kickoff?: string | null
+          league?: string | null
+          market_type?: string
+          match_name?: string
+          passed?: boolean
+          predicted_value?: string
+          probability?: number
+          reason?: Json
+          result_score?: string | null
+          score_confidence?: number
+          status?: string
         }
         Relationships: []
       }
