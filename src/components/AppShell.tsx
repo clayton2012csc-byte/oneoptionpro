@@ -93,6 +93,7 @@ function SectionMenu() {
                   {content}
                 </button>
               );
+              }
             })}
 
           </div>
