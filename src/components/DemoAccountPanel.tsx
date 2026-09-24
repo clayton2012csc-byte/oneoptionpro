@@ -79,10 +79,10 @@ function BetRow({ bet }: { bet: DemoBet }) {
         ) : (
           <span
             className={`shrink-0 text-[10px] font-black uppercase tracking-widest ${
-              bet.status === "green" ? "text-emerald-300" : "text-destructive"
+              bet.status === "green" ? "text-emerald-300" : bet.status === "red" ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {bet.status === "green" ? "Ganhou" : "Perdeu"}
+            {bet.status === "green" ? "Green" : bet.status === "red" ? "Red" : "Anulada"}
           </span>
         )}
         <button
@@ -204,6 +204,7 @@ export function DemoAccountPanel() {
         <Stat label="Perdidas" value={`${stats.red}`} tone="text-destructive" />
         <Stat label="Em jogo" value={brl(stats.exposure)} />
       </div>
+      <DemoAuditoria bets={bets} />
 
       <div className="space-y-2">
         {bets.length === 0 && (
@@ -214,6 +215,45 @@ export function DemoAccountPanel() {
         {bets.map((b) => (
           <BetRow key={b.id + b.createdAt} bet={b} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+function DemoAuditoria({ bets }: { bets: DemoBet[] }) {
+  const rows = useMemo(() => {
+    const m = new Map<string, { g: number; r: number; p: number; inv: number; ret: number }>();
+    for (const b of bets) {
+      const k = b.source || "Outros";
+      const x = m.get(k) ?? { g: 0, r: 0, p: 0, inv: 0, ret: 0 };
+      if (b.status === "green") { x.g++; x.inv += b.stake; x.ret += b.stake * b.odd; }
+      else if (b.status === "red") { x.r++; x.inv += b.stake; }
+      else if (b.status === "pending") x.p++;
+      m.set(k, x);
+    }
+    return [...m.entries()].sort((a, b) => b[1].g + b[1].r - (a[1].g + a[1].r));
+  }, [bets]);
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-4">
+      <div className="text-[10px] font-black uppercase tracking-widest text-primary mb-1">Auditoria da conta demo</div>
+      <p className="text-[11px] text-muted-foreground mb-3">Green/Red por aba. As apostas são conferidas sozinhas quando o jogo termina.</p>
+      <div className="space-y-1.5">
+        {rows.map(([src, x]) => {
+          const t = x.g + x.r;
+          const acc = t ? x.g / t : 0;
+          const lucro = x.ret - x.inv;
+          return (
+            <div key={src} className="flex items-center gap-2 text-[11px]">
+              <span className="flex-1 truncate font-semibold">{src}</span>
+              <span className="text-emerald-300 tabular">{x.g}G</span>
+              <span className="text-destructive tabular">{x.r}R</span>
+              <span className="text-muted-foreground tabular">{x.p} abertas</span>
+              <span className={`w-12 text-right font-black tabular ${!t ? "text-muted-foreground" : acc >= 0.5 ? "text-emerald-300" : "text-destructive"}`}>{t ? `${Math.round(acc * 100)}%` : "—"}</span>
+              <span className={`w-16 text-right font-black tabular ${lucro >= 0 ? "text-emerald-300" : "text-destructive"}`}>{brl(lucro)}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
