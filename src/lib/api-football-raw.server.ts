@@ -78,7 +78,7 @@ export async function fixturesByDate(date: string): Promise<ApiFixture[]> {
 export async function upcomingFixtures(hours = 24): Promise<ApiFixture[]> {
   const now = Date.now();
   const horizon = now + hours * 60 * 60_000;
-  const days = [0, 1, 2].map((i) => ymd(new Date(now + i * 86_400_000)));
+  const days = [0, 1, 2, 3].map((i) => ymd(new Date(now + i * 86_400_000)));
   const out: ApiFixture[] = [];
   for (const d of days) {
     const list = await fixturesByDate(d);
